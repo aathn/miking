@@ -105,9 +105,9 @@ We may also allow pattern matching. This could be desugared to a
 collections (perhaps this is best to leave for later).
 
     let sum = lam c.
-      match c with [] then
+      match c with {} then
         0
-      else match c with [a] ++ b then
+      else match c with {a} ++ b then
         a + sum b
       else never
 
@@ -119,7 +119,7 @@ and/or previously defined operations.
     recursive let myFun : Int -> a -> Coll p a =
       lam n. lam x.
         if lti n 1 then
-          insert x empty
+          {x}
         else
           let c = myFun (subi n 1) x in
           append c c
@@ -132,8 +132,12 @@ and/or previously defined operations.
     utest size mySet      with 1 in
     ()
 
+Here, the syntax `{x1, x2, ..., xn}` is sugar for
+`insert x1 (insert x2 (... (insert xn empty)))`.
 Annotations specifying a collection's properties are required wherever
 they cannot be inferred.
+
+The folder [examples](./examples) contains some further example programs.
 
 We are assuming that the element type can be queried for supported
 operations, so that one does not have to explicitly give e.g. an

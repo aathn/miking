@@ -41,16 +41,17 @@ In this presentation, a property map must essentially have the type
 At first glance, it seems that this prevents us from representing finite
 maps, where we would like a property map of type
 
-    p : all k v. (Traits?) -> [(k, v)] -> [(k, v)],
+    p : all k v. EqOrd k -> [(k, v)] -> [(k, v)],
 
 which would remove duplicates only in the left components (keys), and
 perhaps order by the keys as well.
 
 However, this can be achieved by using the EqOrd above. Taking
 
-    { eq  : lam p1. lam p2. eq p1.0 p2.0
-    , cmp : lam p1. lam p2. cmp p1.0 p2.0
-    }
+    let eqord =
+      { eq  = lam p1. lam p2. eq p1.0 p2.0
+      , cmp = lam p1. lam p2. cmp p1.0 p2.0
+      }
 
 we can simply use the regular uniqueness property to get uniqueness of keys,
 and so on.
