@@ -5,6 +5,7 @@ recursive let myFun : Int -> a -> Coll p a =
     else
       let c = myFun (subi n 1) x in
       append c c
+end
 
 let mySequence : Coll {}              = myFun 3 1
 let mySet      : Coll {NonSeq, UniqL} = myFun 3 1

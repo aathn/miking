@@ -1,3 +1,5 @@
+include "set.mc"
+
 type Ord a = a -> a -> Bool
 
 ## repr Set for Coll {NonSeq, UniqL} where
