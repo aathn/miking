@@ -1,4 +1,14 @@
 include "option.mc"
+include "common.mc"
+
+let append = lam c1. lam c2. fold insert c2 c1
+let uncons =
+  let step = lam h. lam r.
+    Some (optionMapOr (h,empty) (lam t. (h, uncurry insert t)) r)
+  in
+  fold step (None ())
+let head = lam c. optionMap (lam x. x.0) (uncons c)
+let tail = lam c. optionMapOr empty (lam x. x.1) (uncons c)
 
 type Tree a
 con Leaf : () -> Tree a
@@ -16,10 +26,10 @@ let bfs : (a -> a -> Bool) -> a -> Tree a -> Bool
       if eq v x then
         true
       else
-        work (append (tail queue) {l, r})
+        work (append (tail queue) (insert l (insert r empty)))
     else never
   in
-  let initialQueue : Coll {} = {t} in
+  let initialQueue : Coll {} = insert t empty in
   work initialQueue
 
 mexpr

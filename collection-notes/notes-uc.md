@@ -7,23 +7,22 @@ modulo some relations, which we call semantic properties.
 
     type Coll p a ~ [a] / p
 
-In practice, we provide `Coll p a` as a base type. We might have a
-declaration mechanism for properties such as below.
+In practice, we provide `Coll p a` as a base type, along with a fixed set of
+properties. We currently support the two properties below
 
-    prop NonSeq =      a ++ b ~ b ++ a
-    prop UniqL  = a ++ b ++ a ~ a ++ b
-    prop UniqR  = a ++ b ++ a ~ b ++ a
-    prop Idem   =      a ++ a ~ a
+    Sequential / Nonsequential.
+    NS  =  a ++ b ~ b ++ a
 
-We give a property map for each property, describing how to emulate the
+    Unique / Multiple element.
+    UQ  =  a ++ b ++ a ~ a ++ b
+
+We have a property map for each property, describing how to emulate the
 given property using a sequence. For instance, a collection with unique
 elements has a property map deleting duplicates, and a nonsequential
 collection has a property map sorting the collection in some specific order.
 
-    propmap NonSeq = sort
-    propmap UniqL  = distinct
-    propmap UniqR  = distinctRight
-    propmap Idem   = distinctConsec
+    propmap NS  =  sort
+    propmap UQ  =  distinct
 
 Each property map has the type
 
@@ -39,28 +38,13 @@ where we define `EqOrd` as follows.
 Note that the main purpose of the property maps is to define the semantics
 of collection operations, and they (and the `EqOrd`) will only be needed
 computationally when checking that a concrete collection satisfies its
-specification.
+specification, although it is technically possible to use sequences +
+property maps as an inefficient representation for any collection. We
+may use this representation as a first prototype to test out the framework.
 
-Depending on how (un-)useful we think it would be to define new properties, we
-could also (1) refrain from providing declaration mechanisms such as
-these, and just provide a hard-coded set of properties and maps, or
-(2) only provide a declaration mechanism for property maps, leaving the
-underlying property implicit.
-
-We assume that all properties are composable unless stated otherwise,
-i.e. their composite property maps can be computed by repeated
-application of the base property maps.
-
-We might have a directive to specify uncomposable properties:
-
-    ## uncomposable UniqL, UniqR
-
-This means that any property set containing both UniqL and UniqR
-is invalid. We must check that the other properties are actually
-composable (presumably by hand), but this saves us from having to give
-an exponential number of property maps. Here, `##` is meant to
-represent a compiler directive, since this is not something we
-necessarily want as part of the object language.
+Note that the composite property `NS,UQ` has the property map `sort .
+distinct`. This simple relation does not hold in general, but it is
+sufficient for now.
 
 ## Defining Collection Operations
 
@@ -119,29 +103,27 @@ and/or previously defined operations.
     recursive let myFun : Int -> a -> Coll p a =
       lam n. lam x.
         if lti n 1 then
-          {x}
+          insert x empty
         else
           let c = myFun (subi n 1) x in
           append c c
+    end
 
-    let mySequence : Coll {}              = myFun 3 1
-    let mySet      : Coll {NonSeq, UniqL} = myFun 3 1
+    let mySequence : Coll {}       = myFun 3 1
+    let mySet      : Coll {NS, UQ} = myFun 3 1
 
     mexpr
     utest size mySequence with 8 in
     utest size mySet      with 1 in
     ()
 
-Here, the syntax `{x1, x2, ..., xn}` is sugar for
-`insert x1 (insert x2 (... (insert xn empty)))`.
 Annotations specifying a collection's properties are required wherever
-they cannot be inferred.
+they cannot be inferred. We are assuming that the element type can be
+queried for supported operations, so that one does not have to
+explicitly give e.g. an ordering when using a collection.
 
 The folder [examples](./examples) contains some further example programs.
 
-We are assuming that the element type can be queried for supported
-operations, so that one does not have to explicitly give e.g. an
-ordering when using a collection.
 
 ## Defining Representations
 
@@ -158,12 +140,12 @@ standard library as a collection representation. We have
 
 We would declare as follows:
 
-    ## repr Set for Coll {NonSeq, UniqL} where
+    ## repr Set for Coll {NS, UQ} where
       empty = setEmpty :: O(1) requiring Ord
 
     let setEmpty = ...
 
-    ## repr Set for Coll {NonSeq, UniqL} where
+    ## repr Set for Coll {NS, UQ} where
       size = setSize :: O(n)
 
     let setSize = ...
@@ -193,30 +175,49 @@ some large `n` when ordering the different operations.
 We could assign several operations in one directive, and we could give
 the directive separately from the implementation.
 
-    ## repr Set for Coll {NonSeq, UniqL} where
+    ## repr Set for Coll {NS, UQ} where
       empty = setEmpty :: O(1) requiring Ord
       size  = setSize :: O(n)
       ...
-
-We could also give several property sets for one operation. For
-instance, a list may efficiently represent both a sequence and
-an idempotent sequence:
-
-    ## repr List for Coll {}, Coll {Idem} where empty = [] :: O(1)
 
 These declarations are intended to be open, so that they do not have
 to be specified all at once.
 
 To specify a map representation, we give `KVPair` as the element type:
 
-    ## repr Map k v for Coll {NonSeq, UniqL} (KVPair k v) where
+    ## repr Map k v for Coll {NS, UQ} (KVPair k v) where
       lookup = mapLookup :: O(log n) requiring Ord k
       ...
 
 The same type parameters must appear in both left and right hand side.
 Here, it is implicitly understood that `KVPair` should be ordered by
-its keys. (I'm not quite sure how we would express this in practice,
-using typeclasses seems like the most elegant option.)
+its keys. We need some way of expressing this, such as canonical
+structures.
+
+## Nondeterministic Properties
+
+Sometimes, one wants to fold over a set, and one simply doesn't care
+about the order of the fold. To accommodate this, we could include a
+notion of nondeterministic properties.
+
+For instance, we could specify:
+
+    ## repr HashSet for Coll {UQ, nondet NS} where
+      fold = ...
+
+This means that `HashSet`'s implementation of `fold` makes no
+guarantees on the ordering, and is _only eligible_ to replace
+`fold` when `nondet NS` has been declared.
+
+When creating a collection, we can declare:
+
+    let c : Coll {UQ, nondet NS} = ...
+
+This says that we _don't care_ about the ordering for this
+particular collection. This makes it so that `c` can be
+implemented by representations for `{UQ, nondet NS}`, but
+not only that; since the ordering doesn't matter, we are free
+to choose from `{UQ}` and `{UQ, NS}` as well.
 
 ## Selecting a Representation
 
@@ -244,7 +245,10 @@ the inferred operations. Thus, care must be taken that when one
 representation provides an implementation for an operation, that all
 other representations supporting that operation also do so (or those
 representations will not be considered at all whenever that operation
-is used). [the design here seems debatable]
+is used). [This design should be debated. An alternative approach may
+be to consider all operations as replaceable at first, and then try to
+find a representation providing the operations as efficiently as
+possible.]
 
 We select the representation minimizing the maximal cost of any one
 operation, and whose requirements are fulfilled by the element type.
@@ -292,6 +296,7 @@ For the previous example we might get something like the following
         else
           let c = myFun repr (subi n 1) x in
           repr.append c c
+    end
 
     let mySet = myFun setDict 3 1
 
@@ -300,10 +305,7 @@ For the previous example we might get something like the following
     ()
 
 Note that in general, we might need record subtyping to make this
-resulting program typeable. This is a result of allowing functions
-to be polymorphic in the operations of a collection in a way which
-closely resembles subtype polymorphism. Perhaps we could escape this
-with partial specialization?
+resulting program typeable. Good thing we have row polymorphism!
 
 For a reference on parametric overloading, see
 http://okmij.org/ftp/Computation/typeclass.html.
@@ -348,15 +350,9 @@ seems reasonable. For all other arguments `argj`, we let `aj = aj'` be
 a suitable randomly generated argument of that type.
 
 The left hand side of `(*)` is computed using the definition of `op`
-in terms of the three primitives `empty`, `insert` and `fold`, with
-
-    empty  = [],
-    insert = cons,
-    fold   = compose foldr (propmap p eqord),
-
-Where `eqord : EqOrd a` is instantiated with the equality and order
-for each element type `a` as appropriate. The right hand side is
-computed using the definition of `opR`.
+in terms of the three primitives `empty`, `insert` and `fold`, the
+naive sequence representation. The right hand side is computed using
+the definition of `opR`.
 
 In this way, we can compare the two definitions and check that the
 representation conforms to its specification.
