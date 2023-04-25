@@ -16,6 +16,9 @@ lang Ast
   syn Expr =
   -- Intentionally left blank
 
+  syn Kind =
+  -- Intentionally left blank
+
   syn Type =
   -- Intentionally left blank
 
@@ -139,6 +142,22 @@ lang Ast
   | p ->
     match smapAccumL_Expr_Pat (lam acc. lam a. (f acc a, a)) acc p
     with (acc, _) in acc
+
+  sem smapAccumL_Kind_Type : all acc. (acc -> Type -> (acc, Type)) -> acc -> Kind -> (acc, Kind)
+  sem smapAccumL_Kind_Type (f : acc -> Type -> (acc, Type)) (acc : acc) =
+  | s -> (acc, s)
+
+  sem smap_Kind_Type : (Type -> Type) -> Kind -> Kind
+  sem smap_Kind_Type (f : Type -> Type) =
+  | s ->
+    match smapAccumL_Kind_Type (lam. lam x. ((), f x)) () s with (_, s) in
+    s
+
+  sem sfold_Kind_Type : all acc. (acc -> Type -> acc) -> acc -> Kind -> acc
+  sem sfold_Kind_Type (f : acc -> Type -> acc) (acc : acc) =
+  | s ->
+    match smapAccumL_Kind_Type (lam a. lam x. (f a x, x)) acc s with (a, _) in
+    a
 
   sem smapAccumL_Type_Type : all acc. (acc -> Type -> (acc, Type)) -> acc -> Type -> (acc, Type)
   sem smapAccumL_Type_Type f acc =
@@ -1240,6 +1259,27 @@ lang NotPat = MatchAst
 end
 
 -----------
+-- KINDS --
+-----------
+
+lang BaseKindAst = Ast
+  syn Kind =
+  | Mono ()
+  | Poly ()
+end
+
+lang RowKindAst = Ast
+  syn Kind =
+  | Row {fields : Map SID Type}
+
+  sem smapAccumL_Kind_Type : all acc. (acc -> Type -> (acc, Type)) -> acc -> Kind -> (acc, Kind)
+  sem smapAccumL_Kind_Type (f : acc -> Type -> (acc, Type)) (acc : acc) =
+  | Row r ->
+    match mapMapAccum (lam acc. lam. lam e. f acc e) acc r.fields with (acc, flds) in
+    (acc, RecordVar {r with fields = flds})
+end
+
+-----------
 -- TYPES --
 -----------
 
@@ -1360,9 +1400,14 @@ lang TensorTypeAst = Ast
 end
 
 lang RecordTypeAst = Ast
+  syn Row =
+  | Closed ()
+  | Row {fields : Map SID Type,
+         rest   : Row}
+
   syn Type =
-  | TyRecord {info   : Info,
-              fields : Map SID Type}
+  | TyRecord {info : Info,
+              row  : Row}
 
   sem tyWithInfo (info : Info) =
   | TyRecord t -> TyRecord {t with info = info}
@@ -1420,38 +1465,11 @@ lang VarTypeAst = Ast
   | TyVar t -> t.info
 end
 
-lang VarSortAst
-  -- VarSort indicates the sort of a type variable, like type variable or
-  -- record variable, and contains related data
-  syn VarSort =
-  | PolyVar ()
-  | MonoVar ()
-  | RecordVar {fields : Map SID Type}
-
-  sem smapAccumL_VarSort_Type : all acc. (acc -> Type -> (acc, Type)) -> acc -> VarSort -> (acc, VarSort)
-  sem smapAccumL_VarSort_Type (f : acc -> Type -> (acc, Type)) (acc : acc) =
-  | RecordVar r ->
-    match mapMapAccum (lam acc. lam. lam e. f acc e) acc r.fields with (acc, flds) in
-    (acc, RecordVar {r with fields = flds})
-  | s ->
-    (acc, s)
-
-  sem smap_VarSort_Type : (Type -> Type) -> VarSort -> VarSort
-  sem smap_VarSort_Type (f : Type -> Type) =
-  | s ->
-    match smapAccumL_VarSort_Type (lam. lam x. ((), f x)) () s with (_, s) in s
-
-  sem sfold_VarSort_Type : all acc. (acc -> Type -> acc) -> acc -> VarSort -> acc
-  sem sfold_VarSort_Type (f : acc -> Type -> acc) (acc : acc) =
-  | s ->
-    match smapAccumL_VarSort_Type (lam a. lam x. (f a x, x)) acc s with (a, _) in a
-end
-
-lang AllTypeAst = VarSortAst + Ast
+lang AllTypeAst = Ast
   syn Type =
   | TyAll {info  : Info,
            ident : Name,
-           sort  : VarSort,
+           kind  : Kind,
            ty    : Type}
 
   sem tyWithInfo (info : Info) =
@@ -1462,10 +1480,9 @@ lang AllTypeAst = VarSortAst + Ast
 
   sem smapAccumL_Type_Type (f : acc -> Type -> (acc, Type)) (acc : acc) =
   | TyAll t ->
-    match smapAccumL_VarSort_Type f acc t.sort with (acc, sort) in
+    match smapAccumL_Kind_Type f acc t.kind with (acc, kind) in
     match f acc t.ty with (acc, ty) in
-    (acc, TyAll {{t with sort = sort}
-                    with ty = ty})
+    (acc, TyAll {t with kind = kind, ty = ty})
 
   sem inspectType =
   | TyAll t -> inspectType t.ty

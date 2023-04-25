@@ -89,6 +89,15 @@ lang FlexTypeAst = VarSortAst + Ast
   | TyFlex {info     : Info,
             contents : Ref FlexVar}
 
+  syn FlexRowVar =
+  | Unbound Name
+  | Link Row
+
+  syn Row =
+  -- Flexible row variable
+  | RowFlex {info : Info,
+             contents : Ref FlexRowVar}
+
   sem tyWithInfo (info : Info) =
   | TyFlex t ->
     switch deref t.contents
