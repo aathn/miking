@@ -12,7 +12,7 @@ let uncurry : all a. all b. all c. (a -> b -> c) -> (a, b) -> c =
 let flip = lam f. lam x. lam y. f y x
 
 -- Printing stuff
-let printLn = lam s. print (concat s "\n"); flushStdout ()
+let printLn : String -> () = never
 let printSeq = lam s. print (join s)
 let printSeqLn = lam s. printSeq s; print "\n"; flushStdout ()
 let dprintLn = lam x. dprint x; printLn ""

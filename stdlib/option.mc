@@ -1,3 +1,4 @@
+include "seq-intrinsics.mc"
 include "bool.mc"
 
 type Option a

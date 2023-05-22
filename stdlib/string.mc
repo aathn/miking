@@ -249,7 +249,7 @@ utest stringIsInt "" with false
 
 
 -- Join a list of strings on a delimiter
-let strJoin: String -> [String] -> String = seqJoin
+let strJoin: String -> [String] -> String = never
 
 utest strJoin "--" ["water", "tea", "coffee"] with "water--tea--coffee"
 utest strJoin "--" [] with emptyStr
