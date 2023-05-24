@@ -1,0 +1,117 @@
+repr Rope {UColl _ ?a = Rope ?a}
+repr ConsList {UColl _ ?a = ConsList ?a}
+repr SnocList {UColl _ ?a = ConsList ?a}
+
+impl[0] collFromSeq : _ -> !Rope = never
+impl[n] create : _ -> _ -> !Rope = never
+impl[n] createList : _ -> _ -> !Rope = never
+impl[n] createRope : _ -> _ -> !Rope = never
+impl[1] isList : !Rope -> _ = never
+impl[1] isRope : !Rope -> _ = never
+impl[1] length : !Rope -> _ = never
+impl[1] concat : !Rope -> !Rope -> !Rope = never
+-- impl[1] concat : _ = lam l = lam r = @1 fold (@n insert) l r
+impl[1] get : !Rope -> _ -> _ = never
+impl[n] set : !Rope -> _ -> _ -> !Rope = never
+impl[1] cons : _ -> !Rope -> !Rope = never
+impl[1] snoc : !Rope -> _ -> !Rope = never
+impl[1] splitAt : !Rope -> _ -> /(!Rope, !Rope) = never
+impl[n] reverse : !Rope -> !Rope  = never
+impl[1] head : !Rope -> _ = never
+impl[1] tail : !Rope -> !Rope = never
+impl[1] null : !Rope -> _ = never
+impl[n] map : _ -> !Rope -> !Rope = never
+impl[n] mapi : _ -> !Rope -> !Rope = never
+impl[n] iter : _ -> !Rope -> _ = never
+impl[n] iteri : _ -> !Rope -> _ = never
+impl[n] foldl : _ -> _ -> !Rope -> _ = never
+impl[n] foldr : _ -> _ -> !Rope -> _ = never
+impl[1] subsequence : !Rope -> _ -> _ -> !Rope = never
+
+impl[n] print : !Rope -> _ = never
+impl[n] printError : !Rope -> _ = never
+impl[n] float2string : _ -> !Rope = never
+impl[n] string2float : !Rope -> _ = never
+impl[n] stringIsFloat : !Rope -> _ = never
+impl[n] readLine : _ -> !Rope = never
+impl[1] argv : !Rope (Coll _ !Rope) = never
+impl[n] readFile : !Rope -> !Rope = never
+impl[n] writeFile : !Rope -> !Rope -> _ = never
+impl[n] fileExists : !Rope -> _ = never
+impl[n] deleteFile : !Rope -> _ = never
+impl[n] command : !Rope -> _ = never
+impl[n] error : !Rope -> _ = never
+
+impl[n] bootParserParseMExprString : _ -> !Rope (Coll _ !Rope) -> !Rope -> _ = never
+impl[n] bootParserParseMCoreFile : /(_, _, !Rope (Coll _ !Rope), _, _, _) -> !Rope (Coll _ !Rope) -> !Rope -> _ = never
+impl[1] bootParserGetString : _ -> _ -> !Rope = never
+
+impl[n] tensorCreateUninitInt : !Rope -> _ = never
+impl[n] tensorCreateUninitFloat : !Rope -> _= never
+impl[n] tensorCreateCArrayInt : !Rope -> (!Rope -> _) -> _ = never
+impl[n] tensorCreateCArrayFloat : !Rope -> (!Rope -> Float) -> _ = never
+impl[n] tensorCreateDense : !Rope -> (!Rope -> _) -> _ = never
+impl[n] tensorGetExn : _ -> !Rope -> _ = never
+impl[n] tensorSetExn : _ -> !Rope -> _ -> _ = never
+impl[n] tensorShape : _ -> !Rope = never
+impl[n] tensorReshapeExn : _ -> !Rope -> _ = never
+impl[n] tensorSliceExn : _ -> !Rope -> _ = never
+impl[n] tensor2string : (_ -> !Rope) -> _ -> !Rope = never
+
+impl[n] make : _ -> _ -> !Rope = never
+impl[n] make : _ -> _ -> !ConsList = consMake
+impl[1] last : !Rope -> _ = never
+impl[1] init : !Rope -> !Rope = never
+impl[n] eqSeq : _ -> !Rope -> !Rope -> _ = never
+impl[n] toList : !Rope -> !Rope = never
+impl[n] mapOption : _ -> !Rope -> !Rope = never
+impl[n] for_ : !Rope -> _ -> _ = never
+impl[n] mapK : _ -> !Rope -> (!Rope -> _) -> _ = never
+impl[n] foldl1 : _ -> !Rope -> _ = never
+impl[n] foldr1 : _ -> !Rope -> _ = never
+impl[n] unfoldr : _ -> _ -> !Rope = never
+impl[n] range : _ -> _ -> _ -> !Rope = never
+impl[n] foldl2 : _ -> _ -> !Rope -> !Rope -> _ = never
+impl[n] zipWith : _ -> !Rope -> !Rope -> !Rope = never
+
+impl[n] zip : !Rope -> !Rope -> !Rope = never
+impl[n] mapAccumL : _ -> _ -> !Rope -> /(_, !Rope) = never
+impl[n] mapAccumR : _ -> _ -> !Rope -> /(_, !Rope) = never
+impl[n] unzip : !Rope -> /(!Rope, !Rope) = never
+impl[n] iter2 : _ -> !Rope -> !Rope -> _ = never
+impl[n] join : !Rope (Coll _ !Rope) -> !Rope = never
+-- TODO(vipa, 2023-05-25): `2.0` below should be `logf n`
+impl[2.0] lowerBoundBinarySearch : _ -> !Rope -> _ = never
+impl[n] partition : _ -> !Rope -> /(!Rope, !Rope) = never
+impl[mulf n n] distinct : _ -> !Rope -> !Rope = never
+impl[n] distinctSorted : _ -> !Rope -> !Rope  = never
+-- TODO(vipa, 2023-05-25): `2.0` below should be `logf n`
+impl[mulf n 2.0] sort : _ -> !Rope -> !Rope = never
+impl[1] quickSort : _ = sort
+impl[1] mergeSort : _ = sort
+impl[n] minIdx : _ -> !Rope -> _ = never
+impl[n] min : _ -> !Rope -> _ = never
+impl[n] max : _ -> !Rope -> _ = never
+impl[n] minOrElse : _ -> _ -> !Rope -> _ = never
+impl[n] maxOrElse : _ -> _ -> !Rope -> _ = never
+impl[n] index : _ -> !Rope -> _ = never
+impl[n] lastIndex : _ -> !Rope -> _ = never
+impl[n] isSuffix : _ -> !Rope -> !Rope -> _ = never
+impl[n] isPrefix : _ -> !Rope -> !Rope -> _ = never
+impl[n] seqCmp : _ -> !Rope -> !Rope -> _ = never
+impl[1] randIndex : !Rope -> _ = never
+impl[1] randElem : !Rope -> _ = never
+-- TODO(vipa, 2023-05-25): `2.0` below should be `logf n`
+impl[mulf n 2.0] permute : !Rope -> !Rope -> !Rope = never
+impl[n] any : _ -> !Rope -> _ = never
+impl[n] forAll : _ -> !Rope -> _ = never
+impl[n] filter : _ -> !Rope -> !Rope = never
+impl[n] filterOption : !Rope -> !Rope = never
+impl[n] find : _ -> !Rope -> _ = never
+impl[n] findMap : _ -> !Rope -> _ = never
+impl[mulf n n] seqLiftA2 : _ -> !Rope -> _ = never
+impl[n] seqMapM : _ -> !Rope -> _ = never
+
+impl[n] printLn : !Rope -> _ = never
+
+impl[mulf 2.0 n] strJoin : !Rope -> !Rope (Coll _ !Rope) -> !Rope = never
