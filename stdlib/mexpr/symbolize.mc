@@ -20,6 +20,12 @@ include "type.mc"
 ---------------------------
 -- SYMBOLIZE ENVIRONMENT --
 ---------------------------
+
+-- NOTE(aathn, 2023-05-15): This type is used to enable a mutual
+-- dependency between MLang environments and MExpr environments.  It
+-- is declared here, but constructors are added in mlang/symbolize.mc.
+type SymDeclEnv
+
 -- The environment differs from boot in that we use strings directly (we do
 -- have SIDs available, however, if needed).
 
@@ -29,7 +35,11 @@ type SymEnv = {
   tyVarEnv: Map String Name,
   tyConEnv: Map String Name,
   allowFree: Bool,
-  ignoreExternals: Bool
+  ignoreExternals: Bool,
+  -- NOTE(aathn, 2023-05-15): This is only used for MLang symbolization.  In
+  -- the future, we want to get rid of this and instead extend the environment
+  -- in the MLang version using product extension.
+  langEnv : Map String (Name, SymDeclEnv)
 }
 
 let symEnvEmpty = {
@@ -42,7 +52,9 @@ let symEnvEmpty = {
   mapFromSeq cmpString (map (lam t. (t.0, nameNoSym t.0)) builtinTypes),
 
   allowFree = false,
-  ignoreExternals = false
+  ignoreExternals = false,
+
+  langEnv = mapEmpty cmpString,
 }
 
 lang SymLookup

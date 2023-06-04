@@ -54,6 +54,7 @@ lang SynDeclAst = DeclAst
   syn Decl =
   | DeclSyn {ident : Name,
              params : [Name],
+             extends : [Name],
              defs : [{ident : Name, tyIdent : Type}],
              info : Info}
 end
@@ -62,6 +63,7 @@ end
 lang SemDeclAst = DeclAst
   syn Decl =
   | DeclSem {ident : Name,
+             extends : [Name],
              tyAnnot : Type,
              tyBody : Type,
              args : [{ident : Name, tyAnnot : Type}],
