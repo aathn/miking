@@ -298,8 +298,23 @@ lang RecordTypeUnify = UnifyRows + RecordTypeAst
     unifyRowsStrict env t1.fields t2.fields
 end
 
+lang TyWildUnify = Unify + TyWildAst
+  sem unifyBase env =
+  | (TyWild _, TyWild _) -> result.ok []
+end
+
+lang CollTypeUnify = CollTypeAst + Unify
+  sem unifyBase env =
+  | (ty1 & TyColl a, ty2 & TyColl b) ->
+    result.map3
+      (lam filter. lam perm. lam elem. join [filter, perm, elem, [(env, ty1, ty2)]])
+      (unifyTypes env (a.filter, b.filter))
+      (unifyTypes env (a.permutation, b.permutation))
+      (unifyTypes env (a.element, b.element))
+end
+
 lang MExprUnify =
   VarTypeUnify + MetaVarTypeUnify + FunTypeUnify + AppTypeUnify + AllTypeUnify +
   ConTypeUnify + BoolTypeUnify + IntTypeUnify + FloatTypeUnify + CharTypeUnify +
-  SeqTypeUnify + TensorTypeUnify + RecordTypeUnify
+  SeqTypeUnify + TensorTypeUnify + RecordTypeUnify + TyWildUnify + CollTypeUnify
 end

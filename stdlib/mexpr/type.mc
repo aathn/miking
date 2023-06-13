@@ -5,12 +5,13 @@ include "mexpr/const-types.mc"
 
 -- Substitutes type variables
 lang VarTypeSubstitute = VarTypeAst
-  sem substituteVars (subst : Map Name Type) =
+  sem substituteVars : Info -> Map Name Type -> Type -> Type
+  sem substituteVars info subst =
   | TyVar t & ty ->
     match mapLookup t.ident subst with Some tyvar then tyvar
     else ty
   | ty ->
-    smap_Type_Type (substituteVars subst) ty
+    smap_Type_Type (substituteVars info subst) ty
 end
 
 -- Returns the argument list in a type application
