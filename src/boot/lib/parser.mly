@@ -75,6 +75,7 @@
 %token <unit Ast.tokendata> SWITCH
 %token <unit Ast.tokendata> CASE
 %token <unit Ast.tokendata> ALL
+%token <unit Ast.tokendata> SOME
 %token <unit Ast.tokendata> DIVE
 %token <unit Ast.tokendata> PRERUN
 
@@ -178,7 +179,7 @@ top:
     { TopExt($1) }
 
 toplet:
-  | LET var_ident ty_op EQ mexpr
+  | LET var_ident ty_scheme_op EQ mexpr
     { let fi = mkinfo $1.i $4.i in
       Let (fi, $2.v, $3 $1.i, $5) }
 
@@ -196,9 +197,9 @@ topRecLet:
       RecLet (fi, $2) }
 
 topcon:
-  | CON con_ident ty_op
+  | CON con_ident COLON con_ty
     { let fi = mkinfo $1.i $2.i in
-      Con (fi, $2.v, $3 $1.i) }
+      Con (fi, $2.v, $3) }
 
 toputest:
   | UTEST mexpr WITH mexpr
@@ -307,7 +308,7 @@ mexpr:
       { let fi = mkinfo $1.i $3.i in
         let lst = List.map (fun (fi,x,ty,t) -> (fi,x,Symb.Helpers.nosym,ty,t)) $2 in
          TmRecLets(fi,lst,$4) }
-  | LET var_ident ty_op EQ mexpr IN mexpr
+  | LET var_ident ty_scheme_op EQ mexpr IN mexpr
       { let fi = mkinfo $1.i $6.i in
         TmLet(fi,$2.v,Symb.Helpers.nosym,$3 $1.i,$5,$7) }
   | LAM var_ident ty_op DOT mexpr
@@ -319,9 +320,9 @@ mexpr:
   | IF mexpr THEN mexpr ELSE mexpr
       { let fi = mkinfo $1.i (tm_info $6) in
         TmMatch(fi,$2,PatBool(fi,true),$4,$6) }
-  | CON con_ident ty_op IN mexpr
+  | CON con_ident COLON con_ty IN mexpr
       { let fi = mkinfo $1.i $4.i in
-        TmConDef(fi,$2.v,Symb.Helpers.nosym,$3 $1.i,$5)}
+        TmConDef(fi,$2.v,Symb.Helpers.nosym,$3,$5)}
   | MATCH mexpr WITH pat THEN mexpr ELSE mexpr
       { let fi = mkinfo $1.i (tm_info $8) in
         TmMatch(fi,$2,$4,$6,$8) }
@@ -356,10 +357,10 @@ mexpr:
         TmExt(fi,$2.v,Symb.Helpers.nosym,true,$5,$7) }
 
 lets:
-  | LET var_ident ty_op EQ mexpr
+  | LET var_ident ty_scheme_op EQ mexpr
       { let fi = mkinfo $1.i (tm_info $5) in
         [(fi, $2.v, $3 $1.i, $5)] }
-  | LET var_ident ty_op EQ mexpr lets
+  | LET var_ident ty_scheme_op EQ mexpr lets
       { let fi = mkinfo $1.i (tm_info $5) in
         (fi, $2.v, $3 $1.i, $5)::$6 }
 
@@ -529,6 +530,38 @@ pat_list:
   | pat COMMA pat_list
       { $1 :: $3 }
 
+quantifier_list:
+  | ALL var_ident DOT quantifier_list
+      { let (rigid, flexible) = $4 in
+        ($2 :: rigid, flexible) }
+  | SOME var_ident DOT quantifier_list
+      { let (rigid, flexible) = $4 in
+        (rigid, $2 :: flexible) }
+  |
+      { ([], []) }
+
+con_ty:
+  | quantifier_list ty_left ARROW con_app
+      { let (rigid, flexible) = $1 in
+        (rigid, flexible, $2, $4)}
+
+con_app:
+  | type_ident
+      { TyCon($1.i,$1.v) }
+  | con_app ty_con
+      { let fi = mkinfo (ty_info $1) (ty_info $2) in
+        TyApp (fi, $1, $2) }
+
+ty_scheme:
+  | quantifier_list ty_guarded
+      { let (rigid, flexible) = $1 in
+        (rigid, flexible, $2) }
+
+ty_scheme_op:
+  | COLON ty_scheme
+      { fun _ -> $2 }
+  |
+      { fun i -> ([], [], TyUnknown i) }
 
 ty_op:
   | COLON ty
@@ -536,16 +569,19 @@ ty_op:
   |
       { fun i -> TyUnknown i }
 
-
 ty:
+  | ty_guarded
+      { $1 }
+  | ALL var_ident DOT ty
+      { let fi = mkinfo $1.i (ty_info $4) in
+        TyAll(fi, $2.v, $4) }
+
+ty_guarded:
   | ty_left
       { $1 }
   | ty_left ARROW ty
       { let fi = mkinfo (ty_info $1) (ty_info $3) in
         TyArrow(fi,$1,$3) }
-  | ALL var_ident DOT ty
-      { let fi = mkinfo $1.i (ty_info $4) in
-        TyAll(fi, $2.v, $4) }
 
 ty_left:
   | ty_atom
