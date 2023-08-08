@@ -142,8 +142,11 @@ lang Unify = Ast
   | Rows (Map SID Type, Map SID Type)
   | Kinds (Kind, Kind)
 
+  syn Obligation =
+  | TypeUnification { env : UnifyEnv, left : Type, right : Type }
+  | ReprUnification { env : UnifyEnv, left : Repr, right : Repr }
+
   type UnifyResult a = Result () UnifyError a
-  type Unifier = [(UnifyEnv, Type, Type)]
 
   -- Unify the types `ty1` and `ty2`, where
   -- `ty1` is the expected type of an expression, and
@@ -151,7 +154,7 @@ lang Unify = Ast
   -- under the assumptions of `env`.  Returns a list of unification obligations
   -- `(TyMetaVar m, ty)`, where the variable of the left-hand side
   -- should be unified with the type `ty`.
-  sem unifyTypes : UnifyEnv -> (Type, Type) -> UnifyResult Unifier
+  sem unifyTypes : UnifyEnv -> (Type, Type) -> UnifyResult [Obligation]
   sem unifyTypes env =
   | (ty1, ty2) ->
     unifyBase
@@ -162,7 +165,7 @@ lang Unify = Ast
   -- assumptions of env.
   -- IMPORTANT: Assumes that ty1 = unwrapType env.wrappedLhs and
   -- ty2 = unwrapType env.wrappedRhs.
-  sem unifyBase : UnifyEnv -> (Type, Type) -> UnifyResult Unifier
+  sem unifyBase : UnifyEnv -> (Type, Type) -> UnifyResult [Obligation]
   sem unifyBase env =
   | (ty1, ty2) ->
     result.err (Types (ty1, ty2))
@@ -171,7 +174,7 @@ end
 -- Helper language providing functions to unify fields of record-like types
 lang UnifyRows = Unify
   -- Check that 'm1' is a subset of 'm2'
-  sem unifyRowsSubset : UnifyEnv -> Map SID Type -> Map SID Type -> UnifyResult Unifier
+  sem unifyRowsSubset : UnifyEnv -> Map SID Type -> Map SID Type -> UnifyResult [Obligation]
   sem unifyRowsSubset env m1 =
   | m2 ->
     let f = lam acc. lam b.
@@ -187,7 +190,7 @@ lang UnifyRows = Unify
     foldl f (result.ok []) (mapBindings m1)
 
   -- Check that 'm1' and 'm2' contain the same fields
-  sem unifyRowsStrict : UnifyEnv -> Map SID Type -> Map SID Type -> UnifyResult Unifier
+  sem unifyRowsStrict : UnifyEnv -> Map SID Type -> Map SID Type -> UnifyResult [Obligation]
   sem unifyRowsStrict env m1 =
   | m2 ->
     if eqi (mapSize m1) (mapSize m2) then
@@ -196,7 +199,7 @@ lang UnifyRows = Unify
       result.err (Rows (m1, m2))
 
   -- Check that the intersection of 'm1' and 'm2' unifies, then return their union
-  sem unifyRowsUnion : UnifyEnv -> Map SID Type -> Map SID Type -> (UnifyResult Unifier, Map SID Type)
+  sem unifyRowsUnion : UnifyEnv -> Map SID Type -> Map SID Type -> (UnifyResult [Obligation], Map SID Type)
   sem unifyRowsUnion env m1 =
   | m2 ->
     let f = lam acc. lam b.
@@ -219,10 +222,8 @@ end
 
 lang MetaVarTypeUnify = Unify + MetaVarTypeAst + RecordTypeAst
   sem unifyBase env =
-  | (TyMetaVar _ & ty1, ty2) ->
-    result.ok [(env, ty1, ty2)]
-  | (!TyMetaVar _ & ty1, TyMetaVar _ & ty2) ->
-    unifyBase {env with wrappedLhs = env.wrappedRhs, wrappedRhs = env.wrappedLhs} (ty2, ty1)
+  | (ty1, ty2) & ((TyMetaVar _, _) | (_, TyMetaVar _)) ->
+    result.ok [TypeUnification {env = env, left = ty1, right = ty2}]
 end
 
 lang FunTypeUnify = Unify + FunTypeAst
@@ -305,9 +306,10 @@ end
 
 lang CollTypeUnify = CollTypeAst + Unify
   sem unifyBase env =
-  | (ty1 & TyColl a, ty2 & TyColl b) ->
+  | (TyColl a, TyColl b) ->
     result.map3
-      (lam filter. lam perm. lam elem. join [filter, perm, elem, [(env, ty1, ty2)]])
+      (lam filter. lam perm. lam elem.
+        join [filter, perm, elem, [ReprUnification {env = env, left = a.repr, right = b.repr}]])
       (unifyTypes env (a.filter, b.filter))
       (unifyTypes env (a.permutation, b.permutation))
       (unifyTypes env (a.element, b.element))

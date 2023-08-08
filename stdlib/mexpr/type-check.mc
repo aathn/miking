@@ -168,22 +168,17 @@ lang TCUnify = Unify + AliasTypeAst + PrettyPrint + Cmp + MetaVarTypeCmp + UCTHe
       switch result.consume res
       case (_, Left errs) then unificationError info ty1 ty2
       case (_, Right []) then ()
-      case (_, Right ([ (env, meta, ty) ] ++ rest)) then
-        let eitherWrapped = match (meta, ty) with (TyMetaVar _, _) | (_, TyMetaVar _) then true else false in
-        match (unwrapType meta, unwrapType ty) with (meta, ty) in
-        let newObligations =
-          switch (eitherWrapped, meta, ty)
-          case (_, TyMetaVar _, _) then
-            unifyMeta tcenv info env (meta, ty)
-          case (false, TyColl a, TyColl b) then
-            -- NOTE(vipa, 2023-08-07): The component types are already
-            -- handled, so we only have to unify the reprs
-            unifyReprs tcenv.uct.reprScope tcenv.uct.delayedReprUnifications a.repr b.repr;
+      case (_, Right ([suspended] ++ rest)) then
+        let newObligations = switch suspended
+          case TypeUnification u then
+            switch (unwrapType u.left, unwrapType u.right)
+            case pair & ((TyMetaVar _, _) | (_, TyMetaVar _)) then unifyMeta tcenv info u.env pair
+            case pair then unifyTypes u.env pair
+            end
+          case ReprUnification u then
+            unifyReprs tcenv.uct.reprScope tcenv.uct.delayedReprUnifications u.left u.right;
             result.ok []
-          case _ then
-            unifyTypes env (meta, ty)
-          end
-        in
+          end in
         work (result.map (lam unifier. concat unifier rest) newObligations)
       end
     in
@@ -196,7 +191,7 @@ lang TCUnify = Unify + AliasTypeAst + PrettyPrint + Cmp + MetaVarTypeCmp + UCTHe
 
   -- unifyMeta unifies a metavariable with a given type, in a side-effecting way,
   -- returning any further resulting unification obligations.
-  sem unifyMeta : TCEnv -> [Info] -> UnifyEnv -> (Type, Type) -> UnifyResult Unifier
+  sem unifyMeta : TCEnv -> [Info] -> UnifyEnv -> (Type, Type) -> UnifyResult [Obligation]
 
   -- unifyCheck is called before a variable `tv' is unified with another type.
   -- Performs multiple tasks in one traversal:
@@ -270,7 +265,7 @@ lang VarTypeTCUnify = TCUnify + VarTypeAst
 end
 
 lang MetaVarTypeTCUnify = TCUnify + UnifyRows + MetaVarTypeAst + RecordTypeAst
-  sem addKinds : UnifyEnv -> (Kind, Kind) -> (UnifyResult Unifier, Kind)
+  sem addKinds : UnifyEnv -> (Kind, Kind) -> (UnifyResult [Obligation], Kind)
   sem addKinds env =
   | (Row r1, Row r2) ->
     match unifyRowsUnion env r1.fields r2.fields with (unifier, fields) in
@@ -304,6 +299,16 @@ lang MetaVarTypeTCUnify = TCUnify + UnifyRows + MetaVarTypeAst + RecordTypeAst
       else match tv.kind with Row _ then result.err (Types (ty1, ty2)) else result.ok []
     in
     modref t1.contents (Link env.wrappedRhs);
+    unifier
+  | (!TyMetaVar _ & ty2, TyMetaVar t1 & ty1) ->
+    match deref t1.contents with Unbound tv in
+    unifyCheck tcenv info tv ty2;
+    let unifier =
+      match (tv.kind, ty2) with (Row r1, TyRecord r2) then
+        unifyRowsSubset env r1.fields r2.fields
+      else match tv.kind with Row _ then result.err (Types (ty1, ty2)) else result.ok []
+    in
+    modref t1.contents (Link env.wrappedLhs);
     unifier
 
   sem unifyCheckBase env info boundVars tv =
