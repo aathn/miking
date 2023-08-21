@@ -144,7 +144,7 @@ lang Unify = Ast
 
   syn Obligation =
   | TypeUnification { env : UnifyEnv, left : Type, right : Type }
-  | ReprUnification { env : UnifyEnv, left : Repr, right : Repr }
+  | ReprUnification { env : UnifyEnv, left : ReprVar, right : ReprVar }
 
   type UnifyResult a = Result () UnifyError a
 
@@ -304,19 +304,17 @@ lang TyWildUnify = Unify + TyWildAst
   | (TyWild _, TyWild _) -> result.ok []
 end
 
-lang CollTypeUnify = CollTypeAst + Unify
+lang ReprTypeUnify = ReprTypeAst + Unify
   sem unifyBase env =
-  | (TyColl a, TyColl b) ->
-    result.map3
-      (lam filter. lam perm. lam elem.
-        join [filter, perm, elem, [ReprUnification {env = env, left = a.repr, right = b.repr}]])
-      (unifyTypes env (a.filter, b.filter))
-      (unifyTypes env (a.permutation, b.permutation))
-      (unifyTypes env (a.element, b.element))
+  | (TyRepr a, TyRepr b) ->
+    result.map
+      (lam arg.
+        join [arg, [ReprUnification {env = env, left = a.repr, right = b.repr}]])
+      (unifyTypes env (a.arg, b.arg))
 end
 
 lang MExprUnify =
   VarTypeUnify + MetaVarTypeUnify + FunTypeUnify + AppTypeUnify + AllTypeUnify +
   ConTypeUnify + BoolTypeUnify + IntTypeUnify + FloatTypeUnify + CharTypeUnify +
-  SeqTypeUnify + TensorTypeUnify + RecordTypeUnify + TyWildUnify + CollTypeUnify
+  SeqTypeUnify + TensorTypeUnify + RecordTypeUnify + TyWildUnify + ReprTypeUnify
 end
