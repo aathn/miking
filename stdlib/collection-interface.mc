@@ -13,21 +13,42 @@ type SortedOrder
 -- Fundamental operations --
 ----------------------------
 
-let empty : all o. all p. all a. Coll o p a
+-- These should be used to give default implementations for all other operations.
+
+let empty : all p. all a. Coll o p a
   = never
 
-let append
-  : all o. all p. all a
-  .  Coll o p a
+let append_op
+  : all p1. all p2. all a
+  .  Coll p1 a
   -> a
-  -> Coll o p a
+  -> Coll p2 a
   = never
+
+let append : all p. all a. Coll p a -> a -> Coll p a = append_op
+
+let prepend_op
+  : all p1. all p2. all a
+  .  a
+  -> Coll p1 a
+  -> Coll p2 a
+  = never
+
+let prepend : all p. all a. a -> Coll p a -> Coll p a = prepend_op
 
 let foldl
-  : all o. all p. all a. all acc
+  : all p. all a. all acc
   . (acc -> a -> acc)
   -> acc
   -> Coll o p a
+  -> acc
+  = never
+
+let foldr
+  : all p. all a. all acc
+  . (acc -> a -> acc)
+  -> acc
+  -> Coll p a
   -> acc
   = never
 
@@ -38,147 +59,209 @@ let foldl
 -- Property manipulation
 
 let view
-  : all o1. all p1. all o2. all p2. all a
-  .  Coll o1 p1 a
-  -> Coll o2 p2 a
+  : all p1. all p2. all a
+  .  Coll p1 a
+  -> Coll p2 a
   = never
 
-let into
-  : all o1. all p1. all o2. all p2. all a
-  .  Coll o1 p1 a
-  -> Coll o2 p2 a
-  -> Coll o1 p1 a
+-- Monoid
+
+let singleton : all p. all a. a -> Coll p a = never
+
+let concat_op
+  : all p1. all p2. all p3. all a
+  .  Coll p1 a
+  -> Coll p2 a
+  -> Coll p3 a
   = never
+
+let concat
+  : all p. all a
+  .  Coll p a
+  -> Coll p a
+  -> Coll p a
+  = concat_op
+
+let into
+  : all p1. all p2. all a
+  .  Coll p1 a
+  -> Coll p2 a
+  -> Coll p1 a
+  = concat_op
 
 -- Foldable
 
-let foldr
-  : all o. all p. all a. all acc
-  . (a -> acc -> acc)
-  -> acc
-  -> Coll o p a
-  -> acc
-  = never
-
 let foldl1
-  : all o. all p. all a
+  : all p. all a
   . (a -> a -> a)
-  -> Coll o p a
+  -> Coll p a
   -> a
   = never
 
 let foldr1
-  : all o. all p. all a
+  : all p. all a
   . (a -> a -> a)
-  -> Coll o p a
+  -> Coll p a
   -> a
   = never
 
 -- Functor / applicative
 
-let map
-  : all o. all p. all a. all b
+let map_op
+  : all p1. all p2. all a. all b
   . (a -> b)
-  -> Coll o p a
-  -> Coll o p b
+  -> Coll p1 a
+  -> Coll p2 b
+  = never
+
+let map
+  : all p. all a. all b
+  . (a -> b)
+  -> Coll p a
+  -> Coll p b
+  = map_op
+
+let map2_op
+  : all p1. all p2. all p3. all a. all b. all c
+  . (a -> b -> c)
+  -> Coll p1 a
+  -> Coll p2 b
+  -> Coll p3 c
   = never
 
 let map2
-  : all o. all p. all a. all b. all c
-  . (a -> b -> c)
-  -> Coll o p a
-  -> Coll o p b
-  -> Coll o p c
-  = never
+  : all p. all a. all b
+  . (a -> b)
+  -> Coll p a
+  -> Coll p a
+  -> Coll p b
+  = map2_op
 
--- Monoid / monad
+-- Monad
 
-let singleton : all o. all p. all a. a -> Coll o p a = never
-
-let concat
-  : all o. all p. all a
-  .  Coll o p a
-  -> Coll o p a
-  -> Coll o p a
+let join_op
+  : all p1. all p2. all p3. all a
+  .  Coll p1 (Coll p2 a)
+  -> Coll p3 a
   = never
 
 let join
-  : all o. all p. all a
-  .  Coll o p (Coll o p a)
-  -> Coll o p a
+  : all p. all a
+  .  Coll p (Coll p a)
+  -> Coll p a
+  = join_op
+
+let concatMap_op
+  : all p1. all p2. all p3. all a. all b
+  . (a -> Coll p2 b)
+  -> Coll p1 a
+  -> Coll p3 b
   = never
 
 let concatMap
-  : all o. all p. all a. all b
-  . (a -> Coll o p b)
-  -> Coll o p a
-  -> Coll o p b
-  = never
+  : all p. all a. all b
+  . (a -> Coll p b)
+  -> Coll p a
+  -> Coll p b
+  = concatMap_op
 
 -- Traversable
 
-let mapAccumL
-  : all o. all p. all a. all b. all c
+let mapAccumL_op
+  : all p1. all p2. all a. all b. all c
   . (a -> b -> (a, c))
   -> a
-  -> Coll o p b
-  -> (a, Coll o p c)
+  -> Coll p1 b
+  -> (a, Coll p2 c)
+  = never
+
+let mapAccumL
+  : all p. all a. all b. all c
+  . (a -> b -> (a, c))
+  -> a
+  -> Coll p b
+  -> (a, Coll p c)
+  = mapAccumL_op
+
+let mapAccumR_op
+  : all p1. all p2. all a. all b. all c
+  . (a -> b -> (a, c))
+  -> a
+  -> Coll p1 b
+  -> (a, Coll p2 c)
   = never
 
 let mapAccumR
-  : all o. all p. all a. all b. all c
+  : all p. all a. all b. all c
   . (a -> b -> (a, c))
   -> a
-  -> Coll o p b
-  -> (a, Coll o p c)
+  -> Coll p b
+  -> (a, Coll p c)
+  = mapAccumR_op
+
+let iter : all p. all a. (a -> ()) -> Coll p a -> ()
   = never
 
 -- Filtering and predicates
 
-let filterMap
-  : all o. all p. all a. all b
+let filterMap_op
+  : all p1. all p2. all a. all b
   . (a -> Option b)
-  -> Coll o p a
-  -> Coll o p b
+  -> Coll p1 a
+  -> Coll p2 b
+  = never
+
+let filterMap
+  : all p. all a. all b
+  . (a -> Option b)
+  -> Coll p a
+  -> Coll p b
+  = filterMap_op
+
+let filter_op
+  : all p1. all p2. all a
+  . (a -> Bool)
+  -> Coll p1 a
+  -> Coll p2 a
   = never
 
 let filter
-  : all o. all p. all a
+  : all p. all a
   . (a -> Bool)
-  -> Coll o p a
-  -> Coll o p a
-  = never
+  -> Coll p a
+  -> Coll p a
+  = filter_op
 
 let any
-  : all o. all p. all a
+  : all p. all a
   . (a -> Bool)
-  -> Coll o p a
+  -> Coll p a
   -> Bool
   = never
 
 let every
-  : all o. all p. all a
+  : all p. all a
   . (a -> Bool)
-  -> Coll o p a
+  -> Coll p a
   -> Bool
   = never
 
 let findMap
-  : all o. all p. all a
+  : all p. all a
   . (a -> Option b)
-  -> Coll o p a
+  -> Coll p a
   -> Option b
   = never
 
 let find
-  : all o. all p. all a
+  : all p. all a
   . (a -> Bool)
-  -> Coll o p a
+  -> Coll p a
   -> Option a
   = never
 
 let member
-  : all o. all p. all a
+  : all p. all a
   .  a
   -> Coll o p a
   -> Bool
@@ -186,79 +269,236 @@ let member
 
 -- Size
 
-let size : all o. all p. all a. Coll o p a -> Int
+let size : all p. all a. Coll p a -> Int
   = never
 
-let null : all o. all p. all a. Coll o p a -> Bool
+let null : all p. all a. Coll p a -> Bool
   = never
 
 -- Key-value operations
 
 let lookup
-  : all o. all p. all k. all v
+  : all p. all k. all v
   .  k
-  -> Coll o p (k, v)
+  -> Coll p (k, v)
   -> Option v
   = never
 
 let hasKey
-  : all o. all p. all k. all v
+  : all p. all k. all v
   .  k
-  -> Coll o p (k, v)
+  -> Coll p (k, v)
   -> Bool
   = never
 
-let mapWithKey
-  : all o. all p. all k. all a. all b
+let mapWithKey_op
+  : all p1. all p2. all k. all a. all b
   . (k -> a -> b)
-  -> Coll o p (k, a)
-  -> Coll o p (k, b)
+  -> Coll p1 (k, a)
+  -> Coll p2 (k, b)
+  = never
+
+let mapWithKey
+  : all p. all k. all a. all b
+  . (k -> a -> b)
+  -> Coll p (k, a)
+  -> Coll p (k, b)
+  = mapWithKey_op
+
+let mapValues_op
+  : all p1. all p2. all k. all a. all b
+  . (a -> b)
+  -> Coll p1 (k, a)
+  -> Coll p2 (k, b)
+  = never
+
+let mapValues
+  : all p. all k. all a. all b
+  . (a -> b)
+  -> Coll p (k, a)
+  -> Coll p (k, b)
+  = mapValues_op
+
+let mapAccumLWithKey_op
+  : all p1. all p2. all k. all a. all b. all c
+  . (a -> k -> b -> (a, c))
+  -> a
+  -> Coll p1 (k, b)
+  -> (a, Coll p2 (k, c))
   = never
 
 let mapAccumLWithKey
-  : all o. all p. all k. all a. all b. all c
+  : all p. all k. all a. all b. all c
   . (a -> k -> b -> (a, c))
   -> a
-  -> Coll o p (k, b)
-  -> (a, Coll o p (k, c))
+  -> Coll p (k, b)
+  -> (a, Coll p (k, c))
+  = mapAccumLWithKey_op
+
+let mapAccumLValues_op
+  : all p1. all p2. all k. all a. all b. all c
+  . (a -> b -> (a, c))
+  -> a
+  -> Coll p1 (k, b)
+  -> (a, Coll p2 (k, c))
+  = never
+
+let mapAccumLValues
+  : all p. all k. all a. all b. all c
+  . (a -> b -> (a, c))
+  -> a
+  -> Coll p (k, b)
+  -> (a, Coll p (k, c))
+  = mapAccumLValues_op
+
+let mapAccumRWithKey_op
+  : all p1. all p2. all k. all a. all b. all c
+  . (a -> k -> b -> (a, c))
+  -> a
+  -> Coll p1 (k, b)
+  -> (a, Coll p2 (k, c))
   = never
 
 let mapAccumRWithKey
-  : all o. all p. all k. all a. all b. all c
+  : all p. all k. all a. all b. all c
   . (a -> k -> b -> (a, c))
   -> a
-  -> Coll o p (k, b)
-  -> (a, Coll o p (k, c))
+  -> Coll p (k, b)
+  -> (a, Coll p (k, c))
+  = mapAccumRWithKey_op
+
+let mapAccumRValues_op
+  : all p1. all p2. all k. all a. all b. all c
+  . (a -> b -> (a, c))
+  -> a
+  -> Coll p1 (k, b)
+  -> (a, Coll p2 (k, c))
   = never
+
+let mapAccumRValues
+  : all p. all k. all a. all b. all c
+  . (a -> b -> (a, c))
+  -> a
+  -> Coll p (k, b)
+  -> (a, Coll p (k, c))
+  = mapAccumRValues_op
 
 -- Indexing and order
 
-let reverse : all o. all p. all a. Coll o p a -> Coll o p a
+let reverse_op : all p1. all p2. all a. Coll p1 a -> Coll p2 a
   = never
 
-let splitAt : all o. all p. all a. Coll o p a -> Int -> (Coll o p a, Coll o p a)
+let reverse : all p. all a. Coll o p a -> Coll o p a
+  = reverse_op
+
+let splitAt_op
+  : all p1. all p2. all p3. all a
+  .  Coll p1 a
+  -> Int
+  -> (Coll p2 a, Coll p3 a)
   = never
 
-let first : all o. all p. all a. Coll o p a -> a
+let splitAt
+  : all p. all a
+  .  Coll p a
+  -> Int
+  -> (Coll p a, Coll p a)
+  = splitAt_op
+
+let getAt
+  : all p. all a
+  .  Coll p a
+  -> Int
+  -> a
   = never
 
-let last : all o. all p. all a. Coll o p a -> a
+let setAt_op
+  : all p1. all p2. all a
+  .  Coll p1 a
+  -> Int
+  -> a
+  -> Coll p2 a
   = never
 
-let tail : all o. all p. all a. Coll o p a -> Coll o p a
+let setAt
+  : all p. all a
+  .  Coll p a
+  -> Int
+  -> a
+  -> Coll p a
+  = set_op
+
+let first : all p. all a. Coll p a -> a
   = never
 
-let init : all o. all p. all a. Coll o p a -> Coll o p a
+let last : all p. all a. Coll p a -> a
   = never
 
-let prepend : all o. all p. all a. a -> Coll o p a -> Coll o p a
+let tail_op : all p. all a. Coll p a -> Coll p a
   = never
+
+let tail : all p1. all p2. all a. Coll p1 a -> Coll p2 a
+  = tail_op
+
+let init_op : all p1. all p2. all a. Coll p1 a -> Coll p2 a
+  = never
+
+let init : all p. all a. Coll p a -> Coll p a
+  = init_op
+
+let mapi_op
+  : all p1. all p2. all a. all b
+  . (Int -> a -> b)
+  -> Coll p1 a
+  -> Coll p2 b
+  = never
+
+let mapi
+  : all p. all a. all b
+  . (Int -> a -> b)
+  -> Coll p a
+  -> Coll p b
+  = mapi_op
+
+let iteri_op
+  : all p1. all p2. all a
+  . (Int -> a -> ())
+  -> Coll p1 a
+  -> ()
+  = never
+
+let iteri
+  : all p. all a
+  . (Int -> a -> ())
+  -> Coll p a
+  -> ()
+  = never
+
+let create : all a. all p
+  .  Int
+  -> (Int -> a)
+  -> Coll p a
+  = never
+
+let rangei_op : all a. all p1. all p2
+  .  Coll p1 a
+  -> Int
+  -> Int
+  -> Coll p2 a
+  = never
+
+let rangei : all a. all p.
+  .  Coll p a
+  -> Int
+  -> Int
+  -> Coll p a
+  = rangei_op
 
 -- Nonsequential operations
 
 let add
-  : all o. all p. all a
+  : all p. all a
   .  a
-  -> Coll o p a
-  -> Coll o p a
-  = never
+  -> Coll p a
+  -> Coll p a
+  = prepend
