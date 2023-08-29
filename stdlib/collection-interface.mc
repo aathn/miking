@@ -1,29 +1,52 @@
 -- This file gives a general interface for collection types.
+-- TODO: Add remaining documentation, and add remaining operations from `seq.mc`.
+
+type UColl p x
+
+type Coll p x = Repr (UColl p x)
+
+-- The first thing to note is that `Coll` is a `Repr`-type, meaning
+-- that the compiler will choose a concrete representation for each
+-- `Coll`-value in the program automatically.
 --
--- In the comments below, we distinguish between a collection's
--- *insertion history* and its *elements*.  The insertion history
--- is the sequence of elements `x1, x2, ..., xn` that have been
--- inserted into a collection `c` since its creation, in the order
--- they were inserted, preserving duplicates. On the other hand,
--- the elements `y1, y2, ..., yn` are the observable contents
--- of `c`, which may be sorted or filtered in some way (e.g.,
--- to remove duplicates) depending on `c`'s properties.
+-- Collections `Coll p x` have two type parameters: the collection
+-- properties `p`, and the element type `x`.  The properties `p`
+-- consist of two components, and determine the semantics of
+-- operations working over a given collection.  For instance, we may
+-- define
+-- `type Seq a = Coll (KeepAll, SeqOrder) a`
+-- `type Set a = Coll (KeepLast, SortedOrder) a`,
+-- for which we expect the following behavior:
 --
--- For example, if `c = append (append 1 empty) 1` is a set, then,
--- its insertion history is `1, 1`, while its single element is `1`.
+-- >> append (append (append empty 2) 1) 1 : Seq Int
+--    ==> [2, 1, 1]
+--
+-- >> append (append (append empty 2) 1) 1 : Set Int
+--    ==> [1, 2]
+--
+-- The properties are given by two components: a selection and a
+-- permutation.  Informally, these components relate the elements of a
+-- collection to the sequence of values inserted into it.  For the
+-- example of sets, whenever a duplicate value is inserted into a set,
+-- the old value is discarded, corresponding to the selection
+-- `KeepLast` that only keeps the last unique element in the sequence
+-- of inserted values.  Similarly, the set keeps its elements in
+-- sorted order, corresponding to the permutation `SortedOrder` that
+-- sorts the sequence of inserted elements.  We can think of the two
+-- components as a pair of functions `f` and `g` on sequences; then
+-- intuitively the elements of a collection `c` with these properties
+-- will be `g (f xs)`, where `xs` is the sequence of elements inserted
+-- into `c`.
+--
+-- In what follows, whenever the documentation makes statements along
+-- the lines of "the elements of `c1` are the elements of `c2`
+-- followed by the elements of `c3`", it should be implicitly
+-- understood that `c1`'s properties may discard or reorder some of
+-- these elements.
 
 ---------------------------
 -- Collection properties --
 ---------------------------
-
--- The properties of a collection determine the semantics of operations working
--- over that collection.  The properties are given by two components:
--- a selection indicating which elements in the insertion history to keep, and
--- an ordering determining how those elements should be sorted.
---
--- Intuitively, we can think of the selection as a filtering function f and the
--- ordering as a permutation g; then the elements of a collection with these
--- properties will be `g (f xs)`, where `xs` is the collection's insertion history.
 
 -- Selection properties.
 
@@ -35,12 +58,12 @@ type KeepAll
 type KeepLast
 
 -- KeepLastKey applies to collections of key-value pairs `(k, v)`, and indicates
--- to only keep the last occurrence of pairs with duplicate keys.
+-- to only keep the last occurrence whenever two pairs have the same keys.
 type KeepLastKey
 
 -- Orderings.
 
--- SeqOrder arranges the values in the same order they had in the insertion history.
+-- SeqOrder arranges the values in the order they were originally inserted.
 -- Seen as a permutation, this is the identity.
 type SeqOrder
 
@@ -57,7 +80,7 @@ type SortedOrder
 let empty : all p. all a. Coll o p a
   = never
 
--- `append_op c a` appends `a` to the insertion history of `c`.
+-- `append_op c a` appends `a` to the elements of `c`.
 let append_op
   : all p1. all p2. all a
   .  Coll p1 a
@@ -67,7 +90,7 @@ let append_op
 
 let append : all p. all a. Coll p a -> a -> Coll p a = append_op
 
--- `prepend_op a c` prepends `a` to the insertion history of `c`.
+-- `prepend_op a c` prepends `a` to the elements of `c`.
 let prepend_op
   : all p1. all p2. all a
   .  a
@@ -78,9 +101,7 @@ let prepend_op
 let prepend : all p. all a. a -> Coll p a -> Coll p a = prepend_op
 
 -- `foldl f acc c` gives `f (... (f (f acc x1) x2) ...) xn`, where
--- `x1, x2, ..., xn` are the elements of `c`.  As stated above,
--- the elements are given by permuting and filtering the insertion
--- history as described by `c`'s properties.
+-- `x1, x2, ..., xn` are the elements of `c`.
 let foldl
   : all p. all a. all acc
   . (acc -> a -> acc)
@@ -105,9 +126,8 @@ let foldr
 
 -- Property manipulation
 
--- `view c` gives a collection whose insertion history is the same as `c`'s.
--- For example, even if `c` is a set, `view`ing `c` as a sequence will retain
--- any duplicates inserted into `c`.
+-- `view c` creates a new collection from the elements of `c`, with
+-- any properties.  If `p1` equals `p2`, then `view c = c`.
 let view
   : all p1. all p2. all a
   .  Coll p1 a
@@ -119,7 +139,7 @@ let view
 -- `singleton a` is a singleton collection with element `a`, with any properties.
 let singleton : all p. all a. a -> Coll p a = never
 
--- `concat_op c1 c2` creates a new collection whose insertion history is the same as
+-- `concat_op c1 c2` creates a new collection whose elements are are
 -- the elements of `c1` followed by the elements of `c2`.
 let concat_op
   : all p1. all p2. all p3. all a
@@ -145,6 +165,7 @@ let into
 -- Foldable
 
 -- `foldl1 f c` behaves as `foldl f (first c) (tail c)`.
+-- WARNING: Errors on empty input.
 let foldl1
   : all p. all a
   . (a -> a -> a)
@@ -153,6 +174,7 @@ let foldl1
   = never
 
 -- `foldr1 f c` behaves as `foldr f (last c) (init c)`.
+-- WARNING: Errors on empty input.
 let foldr1
   : all p. all a
   . (a -> a -> a)
@@ -162,8 +184,9 @@ let foldr1
 
 -- Functor / applicative
 
--- `map_op f c` gives a new collection whose insertion history is
--- `f x1, f x2, ..., f xn`, where `x1, x2, ..., xn` are the elements of `c`.
+-- `map_op f c` creates a new collection with elements
+-- `f x1, f x2, ..., f xn`, where `x1, x2, ..., xn` are the elements
+-- of `c`.
 let map_op
   : all p1. all p2. all a. all b
   . (a -> b)
@@ -178,9 +201,10 @@ let map
   -> Coll p b
   = map_op
 
--- `map2_op f c1 c2` gives a new collection whose insertion history is
--- `f xi yj` for j ∈ 1..m, i ∈ 1..n  where `x1, x2, ..., xn` are the
--- elements of `c1` and `y1, y2, ... yn` are the elements of `c2`.
+-- `map2_op f c1 c2` gives a new collection with elements
+-- `f x1 y1, f x2 y2, ..., f xk yk`, where k = min(m, n) and
+-- `x1, x2, ..., xn` are the elements of `c1` and `y1, y2, ... ym` are
+-- the elements of `c2`.
 let map2_op
   : all p1. all p2. all p3. all a. all b. all c
   . (a -> b -> c)
@@ -199,23 +223,8 @@ let map2
 
 -- Monad
 
--- `join_op c` gives a new collection whose insertion history is
--- the concatenation of the elements of the collections contained in `c`.
-let join_op
-  : all p1. all p2. all p3. all a
-  .  Coll p1 (Coll p2 a)
-  -> Coll p3 a
-  = never
-
-let join
-  : all p. all a
-  .  Coll p (Coll p a)
-  -> Coll p a
-  = join_op
-
--- `concatMap_op f c` gives a new collection whose insertion history is
--- the concatenation of the elements of the collections obtained by
--- mapping `f` over the elements of `c`.
+-- `concatMap_op f c` constructs a new collection from the
+-- concatenation of the collections obtained by mapping `f` over `c`.
 let concatMap_op
   : all p1. all p2. all p3. all a. all b
   . (a -> Coll p2 b)
@@ -229,6 +238,20 @@ let concatMap
   -> Coll p a
   -> Coll p b
   = concatMap_op
+
+-- `join_op c` constructs a new collection from the concatenation of
+-- the collections contained in `c`.
+let join_op
+  : all p1. all p2. all p3. all a
+  .  Coll p1 (Coll p2 a)
+  -> Coll p3 a
+  = never
+
+let join
+  : all p. all a
+  .  Coll p (Coll p a)
+  -> Coll p a
+  = join_op
 
 -- Traversable
 
@@ -274,8 +297,8 @@ let iter : all p. all a. (a -> ()) -> Coll p a -> ()
 
 -- Filtering and predicates
 
--- `filterMap_op f c` constructs a new collection whose insertion history is
--- given by mapping `f` over the elements of `c` and discarding `None ()`-values.
+-- `filterMap_op f c` constructs a new collection by mapping `f` over
+-- the elements of `c` and discarding `None ()`-values.
 let filterMap_op
   : all p1. all p2. all a. all b
   . (a -> Option b)
@@ -290,8 +313,8 @@ let filterMap
   -> Coll p b
   = filterMap_op
 
--- `filter_op f c` constructs a new collection whose insertion history is
--- given by those elements of `c` for which `f` returns `true`.
+-- `filter_op f c` constructs a new collection containing those
+-- elements of `c` for which `f` returns `true`.
 let filter_op
   : all p1. all p2. all a
   . (a -> Bool)
@@ -306,7 +329,7 @@ let filter
   -> Coll p a
   = filter_op
 
--- `any f c` returns `true` if `f` returns `true` for any element of `c`.
+-- `any f c` returns `true` if `f` returns `true` for some element of `c`.
 let any
   : all p. all a
   . (a -> Bool)
@@ -331,7 +354,7 @@ let findMap
   -> Option b
   = never
 
--- `find f c` returns `x` for the first element `x` of `c` such that
+-- `find f c` returns `Some x` for the first element `x` of `c` such that
 -- `f x = true`, or returns `None ()` if there is no such `x`.
 let find
   : all p. all a
@@ -360,7 +383,7 @@ let isSubset
 let size : all p. all a. Coll p a -> Int
   = never
 
--- `null c` returns `true` iff `size c` is 0.
+-- `null c` returns `true` iff `size c` returns 0.
 let null : all p. all a. Coll p a -> Bool
   = never
 
@@ -409,9 +432,11 @@ let setAt
   -> Coll p a
   = set_op
 
+-- WARNING: Errors on empty input.
 let first : all p. all a. Coll p a -> a
   = never
 
+-- WARNING: Errors on empty input.
 let last : all p. all a. Coll p a -> a
   = never
 
@@ -546,33 +571,34 @@ let intersectKeysWith
   = intersectKeysWith_op
 
 let intersectKeys
-  : all p. all k. all a. all b. all c
+  : all p. all k. all a. all b
   .  Coll p (k, a)
   -> Coll p (k, b)
-  -> Coll p (k, c)
+  -> Coll p (k, a)
   = lam c1. lam c2.
-  intersectKeysWith (lam. lam a. a) c1 c2
+  intersectKeysWith (lam a. lam. a) c1 c2
 
 let unionKeysWith_op
   : all p1. all p2. all p3. all k. all a. all b. all c
-  .  Coll p1 (k, a)
-  -> Coll p2 (k, b)
-  -> Coll p3 (k, c)
+  . (a -> a -> a)
+  -> Coll p1 (k, a)
+  -> Coll p2 (k, a)
+  -> Coll p3 (k, a)
   = never
 
 let unionKeysWith
   : all p. all k. all a. all b. all c
-  . (a -> b -> c)
+  . (a -> a -> a)
   -> Coll p (k, a)
-  -> Coll p (k, b)
-  -> Coll p (k, c)
+  -> Coll p (k, a)
+  -> Coll p (k, a)
   = unionKeysWith_op
 
 let unionKeys
-  : all p. all k. all a. all b. all c
+  : all p. all k. all a. all b
   .  Coll p (k, a)
-  -> Coll p (k, b)
-  -> Coll p (k, c)
+  -> Coll p (k, a)
+  -> Coll p (k, a)
   = lam c1. lam c2.
   unionKeysWith (lam. lam a. a) c1 c2
 
@@ -588,6 +614,14 @@ let differenceKeys
   .  Coll p (k, a)
   -> Coll p (k, b)
   -> Coll p (k, a)
+  = differenceKeys_op
+
+let mergeKeys
+  : all p1. all p2. all p3. all k. all a. all b
+  . (k -> These a b -> Option c)
+  -> Coll p1 (k, a)
+  -> Coll p2 (k, b)
+  -> Coll p3 (k, a)
   = differenceKeys_op
 
 let mapWithKey_op
@@ -682,6 +716,20 @@ let mapAccumRValues
   -> (a, Coll p (k, c))
   = mapAccumRValues_op
 
+let filterMapValues_op
+  : all p1. all p2. all k. all a. all b
+  . (a -> Option b)
+  -> Coll p1 (k, a)
+  -> Coll p2 (k, b)
+  = never
+
+let filterMapValues
+  : all p. all k. all a. all b
+  . (a -> Option b)
+  -> Coll p (k, a)
+  -> Coll p (k, b)
+  = filterMapValues_op
+
 let filterValues_op
   : all p1. all p2. all k. all a. all b
   . (a -> Bool)
@@ -707,10 +755,10 @@ let remove
 
 let add
   : all p. all a
-  .  a
+  .  Coll p a
+  -> a
   -> Coll p a
-  -> Coll p a
-  = prepend
+  = append
 
 let difference_op
   : all p1. all p2. all p3. all a
