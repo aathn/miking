@@ -1,5 +1,5 @@
 -- This file gives a general interface for collection types.
--- TODO: Add remaining documentation, and add remaining operations from `seq.mc`.
+-- TODO: Add remaining operations from `seq.mc`.
 
 type UColl p x
 
@@ -24,25 +24,25 @@ type Coll p x = Repr (UColl p x)
 -- >> append (append (append empty 2) 1) 1 : Set Int
 --    ==> [1, 2]
 --
--- The properties are given by two components: a selection and a
--- permutation.  Informally, these components relate the elements of a
--- collection to the sequence of values inserted into it.  For the
--- example of sets, whenever a duplicate value is inserted into a set,
--- the old value is discarded, corresponding to the selection
--- `KeepLast` that only keeps the last unique element in the sequence
--- of inserted values.  Similarly, the set keeps its elements in
--- sorted order, corresponding to the permutation `SortedOrder` that
--- sorts the sequence of inserted elements.  We can think of the two
--- components as a pair of functions `f` and `g` on sequences; then
--- intuitively the elements of a collection `c` with these properties
--- will be `g (f xs)`, where `xs` is the sequence of elements inserted
--- into `c`.
+-- The two components of a collection's properties represent a
+-- selection and a permutation, respectively.  Informally, these
+-- components relate the elements of a collection to the sequence of
+-- values inserted into it.  For the example of sets, whenever a
+-- duplicate value is inserted into a set, the old value is discarded,
+-- corresponding to the selection `KeepLast` that only keeps the last
+-- unique element in the sequence of inserted values.  Similarly, the
+-- set keeps its elements in sorted order, corresponding to the
+-- permutation `SortedOrder` that sorts the sequence of inserted
+-- elements.  We can think of the two components as a pair of
+-- functions `f` and `g` on sequences; then intuitively the elements
+-- of a collection `c` with these properties will be `g (f xs)`, where
+-- `xs` is the sequence of elements inserted into `c`.
 --
 -- In what follows, whenever the documentation makes statements along
 -- the lines of "the elements of `c1` are the elements of `c2`
 -- followed by the elements of `c3`", it should be implicitly
--- understood that `c1`'s properties may discard or reorder some of
--- these elements.
+-- understood that `c1` may discard or reorder some of these elements
+-- depending on the properties it has.
 
 ---------------------------
 -- Collection properties --
@@ -100,8 +100,8 @@ let prepend_op
 
 let prepend : all p. all a. a -> Coll p a -> Coll p a = prepend_op
 
--- `foldl f acc c` gives `f (... (f (f acc x1) x2) ...) xn`, where
--- `x1, x2, ..., xn` are the elements of `c`.
+-- `foldl f acc c` gives `f (... (f (f acc x0) x1) ...) xn`, where
+-- `x0, x1, ..., xn` are the elements of `c`.
 let foldl
   : all p. all a. all acc
   . (acc -> a -> acc)
@@ -110,8 +110,8 @@ let foldl
   -> acc
   = never
 
--- `foldr f acc c` gives `f x1 (... (f xn-1 (f xn acc)) ...)`, where
--- `x1, x2, ..., xn` are the elements of `c`.
+-- `foldr f acc c` gives `f x0 (... (f xn-1 (f xn acc)) ...)`, where
+-- `x0, x1, ..., xn` are the elements of `c`.
 let foldr
   : all p. all a. all acc
   . (a -> acc -> acc)
@@ -127,7 +127,7 @@ let foldr
 -- Property manipulation
 
 -- `view c` creates a new collection from the elements of `c`, with
--- any properties.  If `p1` equals `p2`, then `view c = c`.
+-- any properties.  If `p1 = p2`, then we should have `view c = c`.
 let view
   : all p1. all p2. all a
   .  Coll p1 a
@@ -185,7 +185,7 @@ let foldr1
 -- Functor / applicative
 
 -- `map_op f c` creates a new collection with elements
--- `f x1, f x2, ..., f xn`, where `x1, x2, ..., xn` are the elements
+-- `f x0, f x1, ..., f xn`, where `x0, x1, ..., xn` are the elements
 -- of `c`.
 let map_op
   : all p1. all p2. all a. all b
@@ -202,9 +202,9 @@ let map
   = map_op
 
 -- `map2_op f c1 c2` gives a new collection with elements
--- `f x1 y1, f x2 y2, ..., f xk yk`, where k = min(m, n) and
--- `x1, x2, ..., xn` are the elements of `c1` and `y1, y2, ... ym` are
--- the elements of `c2`.
+-- `f x0 y0, f x1 y1, ..., f xk yk`, where k = min(m, n),
+-- `x0, x1, ..., xn` are the elements of `c1`, and `y0, y1, ... ym`
+-- are the elements of `c2`.
 let map2_op
   : all p1. all p2. all p3. all a. all b. all c
   . (a -> b -> c)
@@ -255,9 +255,11 @@ let join
 
 -- Traversable
 
--- `mapAccumL_op f acc c` behaves as a simultaneous fold and map, returning a pair
--- equivalent to `(foldl f1 acc c, map f2 c)`, where `f1` and `f2` denote `f`'s
--- composition with the first and second tuple projections, respectively.
+-- `mapAccumL_op f acc0 c` maps a stateful function over a collection,
+-- returning the updated collection and the final state.  In other
+-- words, letting `x0, x1, ..., xn` be the elements of `c`, the result
+-- is a tuple `(accn, c')`, where `c'` has elements `y0, y1, ..., yn`
+-- such that `(acc(i+1), yi) = f acci xi` for all `i`.
 let mapAccumL_op
   : all p1. all p2. all a. all b. all c
   . (a -> b -> (a, c))
@@ -371,7 +373,8 @@ let member
   -> Bool
   = never
 
--- `isSubset c1 c2` returns `true` iff every element of `c1` is an element of `c2`.
+-- `isSubset c1 c2` returns `true` iff every element of `c1` is an element of
+-- `c2`.
 let isSubset
   : all p1. all p2. all a
   . Coll p1 a -> Coll p2 a -> Bool
@@ -389,12 +392,17 @@ let null : all p. all a. Coll p a -> Bool
 
 -- Indexing and order
 
+-- `reverse_op c` creates a collection from `c`'s elements in reverse order.
 let reverse_op : all p1. all p2. all a. Coll p1 a -> Coll p2 a
   = never
 
 let reverse : all p. all a. Coll o p a -> Coll o p a
   = reverse_op
 
+-- `splitAt_op c i` returns a tuple `(c1, c2)`, where `c1` has elements
+-- `x0, ..., x(i-1)` and `c2` has elements `xi, ..., xn`, if
+-- `x0, x1, ..., xn` are the elements of `c`.
+-- WARNING: Errors on `i` less than 0 or greater than n.
 let splitAt_op
   : all p1. all p2. all p3. all a
   .  Coll p1 a
@@ -409,6 +417,8 @@ let splitAt
   -> (Coll p a, Coll p a)
   = splitAt_op
 
+-- `getAt_op c i` returns `xi`, if `x0, x1, ..., xn` are the elements of `c`.
+-- WARNING: Errors on `i` less than 0 or greater than n.
 let getAt
   : all p. all a
   .  Coll p a
@@ -416,6 +426,9 @@ let getAt
   -> a
   = never
 
+-- `setAt_op c i a` constructs a collection from `c`, with `xi` replaced by
+-- `a`, if `x0, x1, ..., xn` are the elements of `c`.
+-- WARNING: Errors on `i` less than 0 or greater than n-1.
 let setAt_op
   : all p1. all p2. all a
   .  Coll p1 a
@@ -432,26 +445,36 @@ let setAt
   -> Coll p a
   = set_op
 
+-- `first c` is equivalent to `getAt c 0`.
 -- WARNING: Errors on empty input.
 let first : all p. all a. Coll p a -> a
   = never
 
+-- `last c` is equivalent to `getAt c (subi n 1)`, if `size c = n`.
 -- WARNING: Errors on empty input.
 let last : all p. all a. Coll p a -> a
   = never
 
+-- `tail_op c` is equivalent to the second component of `splitAt_op c 1`.
+-- WARNING: Errors on empty input.
 let tail_op : all p. all a. Coll p a -> Coll p a
   = never
 
 let tail : all p1. all p2. all a. Coll p1 a -> Coll p2 a
   = tail_op
 
+-- `init_op c` is equivalent to the first component of
+-- `splitAt_op c (subi n 1)`, if `size c = n`.
+-- WARNING: Errors on empty input.
 let init_op : all p1. all p2. all a. Coll p1 a -> Coll p2 a
   = never
 
 let init : all p. all a. Coll p a -> Coll p a
   = init_op
 
+-- `mapi_op f c` creates a new collection with elements
+-- `f 0 x0, f 1 x1, ..., f n xn`, where `x0, x1, ..., xn` are the elements
+-- of `c`.
 let mapi_op
   : all p1. all p2. all a. all b
   . (Int -> a -> b)
@@ -473,6 +496,7 @@ let iteri_op
   -> ()
   = never
 
+-- `iteri f c` calls `f` on each element of `c` along with its index, returning unit.
 let iteri
   : all p. all a
   . (Int -> a -> ())
@@ -480,12 +504,15 @@ let iteri
   -> ()
   = never
 
+-- `create n f` creates a new collection with elements `f 0, f 1, ..., f (n - 1)`.
 let create : all p. all a
   .  Int
   -> (Int -> a)
   -> Coll p a
   = never
 
+-- `getRange_op c i j` creates a new collection with elements
+-- `xi, x(i+1), ..., x(j-1)` if i < j, else returning an empty collection.
 let getRange_op : all p1. all p2. all a
   .  Coll p1 a
   -> Int
@@ -500,6 +527,7 @@ let getRange : all p. all a.
   -> Coll p a
   = getRange_op
 
+-- `removeFirst_op a c` removes the first occurrence of `a` in `c`.
 let removeFirst_op : all p1. all p2. all a
   .  a
   -> Coll p1 a
@@ -514,6 +542,8 @@ let removeFirst : all p. all a
 
 -- Key-value operations
 
+-- `lookup k c` returns `Some v` for the first element `(k', v)` in `c` s.t.
+-- `k` = `k'`, or `None ()` if no such element exists.
 let lookup
   : all p. all k. all v
   .  k
@@ -521,6 +551,8 @@ let lookup
   -> Option v
   = never
 
+-- `removeKey_op k c` removes the first element `(k', v)` in `c` such that
+-- `k` = `k'`, acting like the identity if no such element exists.
 let removeKey_op
   : all p1. all p2. all k. all v
   .  k
@@ -535,6 +567,8 @@ let removeKey
   -> Coll p (k, v)
   = removeKey_op
 
+-- `hasKey k c` returns true iff there is an element `(k', v)` in `c` such that
+-- `k` = `k'`.
 let hasKey
   : all p. all k. all v
   .  k
@@ -542,18 +576,29 @@ let hasKey
   -> Bool
   = never
 
+-- `getKeys c` is equivalent to `map_op (lam x. x.0) c`.
 let getKeys
   : all p1. all p2. all k. all v
   .  Coll p1 (k, v)
   -> Coll p2 k
   = never
 
+-- `getValues c` is equivalent to `map_op (lam x. x.1) c`.
 let getValues
   : all p1. all p2. all k. all v
   .  Coll p1 (k, v)
   -> Coll p2 v
   = never
 
+-- `intersectKeysWith_op f c1 c2` produces a new collection whose keys are the
+-- intersection of `c1`'s and `c2`'s.  The value associated with each key will
+-- be obtained by combining the corresponding values in `c1` and `c2` using `f`.
+-- If `c1` contains duplicates of a key, all will be used; on the other hand,
+-- if `c2` contains duplicates, only the first occurrence is considered.  For
+-- example, with sequences we expect the following semantics.
+--
+-- >> intersectKeysWithOp_op addi [(0, 1), (0, 2)] [(0, 10), (0, 20), (1, 30)]
+--   ==> [(0, 11), (0, 12)]
 let intersectKeysWith_op
   : all p1. all p2. all p3. all k. all a. all b. all c
   . (a -> b -> c)
@@ -578,6 +623,16 @@ let intersectKeys
   = lam c1. lam c2.
   intersectKeysWith (lam a. lam. a) c1 c2
 
+-- `unionKeysWith_op f c1 c2` produces a new collection whose keys are the
+-- union of `c1`'s and `c2`'s.  If a key exists in both collections, the value
+-- associated with that key will be obtained by combining the corresponding
+-- values in `c1` and `c2` using `f`. If `c1` contains duplicates of a key, all
+-- will be used; on the other hand, if `c2` contains duplicates, only the first
+-- occurrence is considered.  For example, with sequences we expect the
+-- following semantics.
+--
+-- >> unionKeysWith_op addi [(0, 1), (0, 2)] [(0, 10), (0, 20), (1, 30)]
+--   ==> [(0, 11), (0, 12), (1, 30)]
 let unionKeysWith_op
   : all p1. all p2. all p3. all k. all a. all b. all c
   . (a -> a -> a)
@@ -602,6 +657,9 @@ let unionKeys
   = lam c1. lam c2.
   unionKeysWith (lam. lam a. a) c1 c2
 
+-- `differenceKeys_op c1 c2` produces a new collection whose keys are those of
+-- `c1` which do not occur in `c2`.  If `c1` contains duplicates of a key, both
+-- will be preserved.
 let differenceKeys_op
   : all p1. all p2. all p3. all k. all a. all b
   .  Coll p1 (k, a)
@@ -616,14 +674,31 @@ let differenceKeys
   -> Coll p (k, a)
   = differenceKeys_op
 
-let mergeKeys
+-- `mergeKeys_op f c1 c2` produces a new collection similarly to `unionKeys` and
+-- `intersectKeys`, but calls `f` for every key in `c1`, passing it
+-- `f k (This v1)`, `f k (That v2)`, or `f k (These (v1, v2))` depending on
+-- whether the key is present in `c1`, `c2`, or both.  If `c1` contains
+-- duplicates of a key, all will be used; on the other hand, if `c2` contains
+-- duplicates, only the first occurrence is considered.
+let mergeKeys_op
   : all p1. all p2. all p3. all k. all a. all b
   . (k -> These a b -> Option c)
   -> Coll p1 (k, a)
   -> Coll p2 (k, b)
   -> Coll p3 (k, a)
-  = differenceKeys_op
+  = never
 
+let mergeKeys
+  : all p. all k. all a. all b
+  . (k -> These a b -> Option c)
+  -> Coll p (k, a)
+  -> Coll p (k, b)
+  -> Coll p (k, a)
+  = mergeKeys_op
+
+-- `mapWithKey_op f c` creates a new collection with elements
+-- `f k0 v0, f k1 v1, ..., f kn vn`, where `(k0, v0), (k1, v1), ..., (kn, vn)`
+-- are the elements of `c`.
 let mapWithKey_op
   : all p1. all p2. all k. all a. all b
   . (k -> a -> b)
@@ -638,6 +713,7 @@ let mapWithKey
   -> Coll p (k, b)
   = mapWithKey_op
 
+-- `mapValues_op f c` is equivalent to `mapWithKey_op (lam. f) c`.
 let mapValues_op
   : all p1. all p2. all k. all a. all b
   . (a -> b)
@@ -652,6 +728,12 @@ let mapValues
   -> Coll p (k, b)
   = mapValues_op
 
+-- `mapAccumLWithKey_op f acc0 c` maps a stateful function over a key-value
+-- collection, returning the updated collection and the final state.  In other
+-- words, letting `(k0, v0), (k1, v1), ..., (kn, xn)` be the elements of `c`,
+-- the result is a tuple `(accn, c')`, where `c'` has elements
+-- `(k0, y0), (k1, y1), ..., (kn, yn)` such that `(acc(i+1), yi) = f acci ki xi`
+-- for all `i`.
 let mapAccumLWithKey_op
   : all p1. all p2. all k. all a. all b. all c
   . (a -> k -> b -> (a, c))
@@ -668,6 +750,8 @@ let mapAccumLWithKey
   -> (a, Coll p (k, c))
   = mapAccumLWithKey_op
 
+-- `mapAccumLValues_op f acc c` is equivalent to
+-- `mapAccumLWithKey_op (lam a. lam. lam b. f a b) acc c`.
 let mapAccumLValues_op
   : all p1. all p2. all k. all a. all b. all c
   . (a -> b -> (a, c))
@@ -684,6 +768,8 @@ let mapAccumLValues
   -> (a, Coll p (k, c))
   = mapAccumLValues_op
 
+-- `mapAccumRWithKey_op` is analogous to `mapAccumLWithKey_op`, but performs a
+-- right fold.
 let mapAccumRWithKey_op
   : all p1. all p2. all k. all a. all b. all c
   . (a -> k -> b -> (a, c))
@@ -700,6 +786,8 @@ let mapAccumRWithKey
   -> (a, Coll p (k, c))
   = mapAccumRWithKey_op
 
+-- `mapAccumRValues_op` is analogous to `mapAccumRValues_op`, but performs a
+-- right fold.
 let mapAccumRValues_op
   : all p1. all p2. all k. all a. all b. all c
   . (a -> b -> (a, c))
@@ -716,6 +804,8 @@ let mapAccumRValues
   -> (a, Coll p (k, c))
   = mapAccumRValues_op
 
+-- `filterMapValues_op f c` constructs a new collection of key-value pairs by
+-- mapping `f` over the values of `c` and discarding `None ()`-results.
 let filterMapValues_op
   : all p1. all p2. all k. all a. all b
   . (a -> Option b)
@@ -730,6 +820,9 @@ let filterMapValues
   -> Coll p (k, b)
   = filterMapValues_op
 
+-- `filterValues_op f c` constructs a new collection of key-value pairs
+-- containing only those elements of `c` for which `f` returns `true` when
+-- applied to the value component.
 let filterValues_op
   : all p1. all p2. all k. all a. all b
   . (a -> Bool)
@@ -760,6 +853,8 @@ let add
   -> Coll p a
   = append
 
+-- `difference_op c1 c2` constructs a new collection containing only those
+-- elements of `c1` which do not occur in `c2`.
 let difference_op
   : all p1. all p2. all p3. all a
   .  Coll p1 a
@@ -774,6 +869,8 @@ let difference
   -> Coll p a
   = difference_op
 
+-- `intersection_op c1 c2` constructs a new collection containing only those
+-- elements of `c1` which also occur in `c2`.
 let intersection_op
   : all p1. all p2. all p3. all a
   .  Coll p1 a
@@ -788,6 +885,9 @@ let intersection
   -> Coll p a
   = intersection_op
 
+-- `union_op c1 c2` constructs a new collection containing the elements of `c1`
+-- along with any elements of `c2` not in `c1`.  Duplicates of elements in `c2`
+-- are discarded.
 let union_op
   : all p1. all p2. all p3. all a
   .  Coll p1 a
