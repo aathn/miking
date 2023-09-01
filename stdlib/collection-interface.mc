@@ -451,7 +451,9 @@ let member
 -- `c2`.
 let isSubset
   : all p1. all p2. all a
-  . Coll p1 a -> Coll p2 a -> Bool
+  .  Coll p1 a
+  -> Coll p2 a
+  -> Bool
   = never
 
 -- `partition_op f c` returns a tuple equivalent to
@@ -468,19 +470,17 @@ let partition : all p. all a
   -> (Coll p a, Coll p a)
   = partition_op
 
--- `distinct_op eq c` removes duplicates of `c` with respect to `eq`, with
--- preserved ordering.  Keeps first occurrence of an element.
+-- `distinct_op c` removes duplicates of `c`, with preserved ordering.  Keeps
+-- first occurrence of an element.
 let distinct_op
   : all p1. all p2. all a
-  . (a -> a -> Bool)
-  -> Coll p1 a
+  .  Coll p1 a
   -> Coll p2 a
   = never
 
 let distinct
   : all p. all a
-  . (a -> a -> Bool)
-  -> Coll p a
+  .  Coll p a
   -> Coll p a
   = distinct_op
 
@@ -496,22 +496,19 @@ let null : all p. all a. Coll p a -> Bool
 
 -- Equality and comparison
 
--- `eqColl eq c1 c2` returns true iff `eq xi yi = true` and `m == n`, where
+-- `eqColl c1 c2` returns true iff `xi == yi` and `m == n`, where
 -- `x0, x1, ..., xn` and `y0, y1, ..., yn` are the elements of `c1` and `c2`,
 -- respectively.
 let eqColl
   : all p1. all p2. all a. all b
-  . (a -> b -> Bool)
-  -> Coll p1 a
+  .  Coll p1 a
   -> Coll p2 b
   -> Bool
   = never
 
--- `cmpColl cmp c1 c2` compares collections `c1` and `c2` lexically given an
--- ordering `cmp` on their elements.
+-- `cmpColl c1 c2` compares collections `c1` and `c2` by lexical ordering.
 let cmpColl : all p1. all p2. all a
-  . (a -> a -> Int)
-  -> Coll p1 a
+  .  Coll p1 a
   -> Coll p2 a
   -> Int
   = never
@@ -666,39 +663,35 @@ let removeFirst : all p. all a
   -> Coll p a
   = removeFirst
 
--- `isPrefix eq c1 c2` returns true iff the elements of `c1` are a prefix of
--- those of `c2`, with equality given by `eq`.
+-- `isPrefix c1 c2` returns true iff the elements of `c1` are a prefix of
+-- those of `c2`.
 let isPrefix
   : all p1. all p2. all a. all b
-  . (a -> b -> Bool)
-  -> Coll p1 a
+  .  Coll p1 a
   -> Coll p2 b
   -> Bool
   = never
 
--- `isSuffix eq c1 c2` returns true iff the elements of `c1` are a suffix of
--- those of `c2`, with equality given by `eq`.
+-- `isSuffix c1 c2` returns true iff the elements of `c1` are a suffix of
+-- those of `c2`.
 let isSuffix
   : all p1. all p2. all a. all b
-  . (a -> b -> Bool)
-  -> Coll p1 a
+  .  Coll p1 a
   -> Coll p2 b
   -> Bool
   = never
 
--- `sort_op cmp c` returns a new collection whose elements are those of `c`,
--- ordered by `cmp` in ascending order.
+-- `sort_op c` returns a new collection whose elements are those of `c`,
+-- ordered in ascending order.
 let sort_op
   : all p1. all p2. all a
-  . (a -> a -> Int)
-  -> Coll p1 a
+  .  Coll p1 a
   -> Coll p2 a
   = never
 
 let sort
   : all p. all a
-  . (a -> a -> Int)
-  -> Coll p a
+  .  Coll p a
   -> Coll p a
   = sort_op
 
