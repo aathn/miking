@@ -1,5 +1,4 @@
 -- This file gives a general interface for collection types.
--- TODO: Add remaining operations from `seq.mc`.
 
 type UColl p x
 
@@ -182,6 +181,34 @@ let foldr1
   -> a
   = never
 
+-- `unfoldl f a0` gives a collection with elements `xn, x(n-1), ..., x0`, where
+-- `f ai = Some (xi, a(i+1))` for all `i`.
+let unfoldl : all p. all a. all b
+  . (a -> Option (b, a))
+  -> a
+  -> Coll p b
+  = never
+
+-- `unfoldr f a0` gives a collection with elements `x0, x1, ..., xn`, where
+-- `f ai = Some (xi, a(i+1))` for all `i`.
+let unfoldr : all p. all a. all b
+  . (a -> Option (b, a))
+  -> a
+  -> Coll p b
+  = never
+
+-- `foldl2 f acc c1 c2` left folds `f` over the first `k` elements in `c1` and
+-- `c2`, accumulating on `acc`, where `k` is the minimum of the two collections'
+-- sizes.
+let foldl2
+  : all p1. all p2. all a. all b. all c
+  . (a -> b -> c -> a)
+  -> a
+  -> Coll p1 b
+  -> Coll p2 c
+  -> a
+  = never
+
 -- Functor / applicative
 
 -- `map_op f c` creates a new collection with elements
@@ -221,6 +248,25 @@ let map2
   -> Coll p b
   = map2_op
 
+-- `map2_nondet_op f c1 c2` gives a new collection with elements `f xi yj` for
+-- all j <= m, i <= n, where `x0, x1, ..., xn` are the elements of `c1`, and
+-- `y0, y1, ... ym` are the elements of `c2`.
+let map2_nondet_op
+  : all p1. all p2. all p3. all a. all b. all c
+  . (a -> b -> c)
+  -> Coll p1 a
+  -> Coll p2 b
+  -> Coll p3 c
+  = never
+
+let map2_nondet
+  : all p. all a. all b. all c
+  . (a -> b -> c)
+  -> Coll p a
+  -> Coll p b
+  -> Coll p c
+  = map2_nondet_op
+
 -- Monad
 
 -- `concatMap_op f c` constructs a new collection from the
@@ -252,6 +298,20 @@ let join
   .  Coll p (Coll p a)
   -> Coll p a
   = join_op
+
+let mapM_op
+  : all p1. all p2. all p3. all p4. all a. all b
+  . (a -> Coll p1 b)
+  -> Coll p2 a
+  -> Coll p3 (Coll p4 b)
+  = never
+
+let mapM
+  : all p. all a. all b
+  . (a -> Coll p b)
+  -> Coll p a
+  -> Coll p (Coll p b)
+  = mapM_op
 
 -- Traversable
 
@@ -294,7 +354,21 @@ let mapAccumR
   = mapAccumR_op
 
 -- `iter f c` calls `f` on each element of `c`, returning unit.
-let iter : all p. all a. (a -> ()) -> Coll p a -> ()
+let iter
+  : all p. all a
+  . (a -> ())
+  -> Coll p a
+  -> ()
+  = never
+
+-- `iter2 f c1 c2` calls `f xi yi` on each pair of elements `xi` in `c1` and
+-- `yi` in `c2`, for all `i` less than the minimum of `c1` and `c2`'s sizes.
+let iter2
+  : all p1. all p2. all a. all b
+  . (a -> b -> ())
+  -> Coll p1 a
+  -> Coll p2 b
+  -> ()
   = never
 
 -- Filtering and predicates
@@ -380,6 +454,36 @@ let isSubset
   . Coll p1 a -> Coll p2 a -> Bool
   = never
 
+-- `partition_op f c` returns a tuple equivalent to
+-- `(filter f c, filter (compose not f) c)`.
+let partition_op : all p1. all p2. all p3. all a
+  . (a -> Bool)
+  -> Coll p1 a
+  -> (Coll p2 a, Coll p3 a)
+  = never
+
+let partition : all p. all a
+  . (a -> Bool)
+  -> Coll p a
+  -> (Coll p a, Coll p a)
+  = partition_op
+
+-- `distinct_op eq c` removes duplicates of `c` with respect to `eq`, with
+-- preserved ordering.  Keeps first occurrence of an element.
+let distinct_op
+  : all p1. all p2. all a
+  . (a -> a -> Bool)
+  -> Coll p1 a
+  -> Coll p2 a
+  = never
+
+let distinct
+  : all p. all a
+  . (a -> a -> Bool)
+  -> Coll p a
+  -> Coll p a
+  = distinct_op
+
 -- Size
 
 -- `size c` returns the number of elements of `c`.
@@ -388,6 +492,28 @@ let size : all p. all a. Coll p a -> Int
 
 -- `null c` returns `true` iff `size c` returns 0.
 let null : all p. all a. Coll p a -> Bool
+  = never
+
+-- Equality and comparison
+
+-- `eqColl eq c1 c2` returns true iff `eq xi yi = true` and `m == n`, where
+-- `x0, x1, ..., xn` and `y0, y1, ..., yn` are the elements of `c1` and `c2`,
+-- respectively.
+let eqColl
+  : all p1. all p2. all a. all b
+  . (a -> b -> Bool)
+  -> Coll p1 a
+  -> Coll p2 b
+  -> Bool
+  = never
+
+-- `cmpColl cmp c1 c2` compares collections `c1` and `c2` lexically given an
+-- ordering `cmp` on their elements.
+let cmpColl : all p1. all p2. all a
+  . (a -> a -> Int)
+  -> Coll p1 a
+  -> Coll p2 a
+  -> Int
   = never
 
 -- Indexing and order
@@ -539,6 +665,42 @@ let removeFirst : all p. all a
   -> Coll p a
   -> Coll p a
   = removeFirst
+
+-- `isPrefix eq c1 c2` returns true iff the elements of `c1` are a prefix of
+-- those of `c2`, with equality given by `eq`.
+let isPrefix
+  : all p1. all p2. all a. all b
+  . (a -> b -> Bool)
+  -> Coll p1 a
+  -> Coll p2 b
+  -> Bool
+  = never
+
+-- `isSuffix eq c1 c2` returns true iff the elements of `c1` are a suffix of
+-- those of `c2`, with equality given by `eq`.
+let isSuffix
+  : all p1. all p2. all a. all b
+  . (a -> b -> Bool)
+  -> Coll p1 a
+  -> Coll p2 b
+  -> Bool
+  = never
+
+-- `sort_op cmp c` returns a new collection whose elements are those of `c`,
+-- ordered by `cmp` in ascending order.
+let sort_op
+  : all p1. all p2. all a
+  . (a -> a -> Int)
+  -> Coll p1 a
+  -> Coll p2 a
+  = never
+
+let sort
+  : all p. all a
+  . (a -> a -> Int)
+  -> Coll p a
+  -> Coll p a
+  = sort_op
 
 -- Key-value operations
 
@@ -730,9 +892,9 @@ let mapValues
 
 -- `mapAccumLWithKey_op f acc0 c` maps a stateful function over a key-value
 -- collection, returning the updated collection and the final state.  In other
--- words, letting `(k0, v0), (k1, v1), ..., (kn, xn)` be the elements of `c`,
+-- words, letting `(k0, v0), (k1, v1), ..., (kn, vn)` be the elements of `c`,
 -- the result is a tuple `(accn, c')`, where `c'` has elements
--- `(k0, y0), (k1, y1), ..., (kn, yn)` such that `(acc(i+1), yi) = f acci ki xi`
+-- `(k0, u0), (k1, u1), ..., (kn, un)` such that `(acc(i+1), ui) = f acci ki vi`
 -- for all `i`.
 let mapAccumLWithKey_op
   : all p1. all p2. all k. all a. all b. all c
