@@ -164,23 +164,23 @@ lang DataTypeTCUnify = TCUnify + DataTypeAst + KindAst
     -> Map Name (Set Name)
     -> ()
   sem unifyCheckData conEnv tyConEnv info tv =
-  | data ->
-    let mkMsg = lam sort. lam n. join [
-      "* Encountered a ", sort, " escaping its scope: ",
-      nameGetStr n, "\n",
-      "* When type checking the expression\n"
-    ] in
-    iter
-      (lam tks.
-      if optionMapOr true (lam r. lti tv.level r.0) (mapLookup tks.0 tyConEnv) then
-        errorSingle info (mkMsg "type constructor" tks.0)
-      else
-        iter (lam k.
-          if optionMapOr true (lam r. lti tv.level r.0) (mapLookup k conEnv) then
-            errorSingle info (mkMsg "constructor" k)
-          else ())
-          (setToSeq tks.1))
-      (mapBindings data)
+  | data -> ()
+    -- let mkMsg = lam sort. lam n. join [
+    --   "* Encountered a ", sort, " escaping its scope: ",
+    --   nameGetStr n, "\n",
+    --   "* When type checking the expression\n"
+    -- ] in
+    -- iter
+    --   (lam tks.
+    --   if optionMapOr true (lam r. lti tv.level r.0) (mapLookup tks.0 tyConEnv) then
+    --     errorSingle info (mkMsg "type constructor" tks.0)
+    --   else
+    --     iter (lam k.
+    --       if optionMapOr true (lam r. lti tv.level r.0) (mapLookup k conEnv) then
+    --         errorSingle info (mkMsg "constructor" k)
+    --       else ())
+    --       (setToSeq tks.1))
+    --   (mapBindings data)
 
   sem unifyCheckBase env info boundVars tv =
   | TyData t ->
