@@ -115,7 +115,8 @@ let _isCharSeq: use Ast in [Expr] -> Bool = use MExprAst in lam tms: [Expr].
 -- First, always check if the terms are characters using _isCharSeq
 let _charSeq2String: use Ast in [Expr] -> String = use MExprAst in lam tms: [Expr].
   let toChar = lam expr.
-    match expr with TmConst { val = CChar { val = val } } in val
+    match expr with TmConst { val = CChar { val = val } } then val
+    else error "expected a constant character term"
   in map toChar tms -- String is a list of characters
 
 let _isCharPatSeq: use Ast in [Pat] -> Bool = use MExprAst in lam pats: [Pat].
