@@ -20,7 +20,7 @@ include "common.mc"
 let _omatch_ = lam target. lam arms.
   use OCamlAst in
   match arms with [h] ++ rest
-  then OTmMatch { target = target, arms = cons h (map (lam x: (Unknown, Unknown). (x.0, objMagic x.1)) rest) }
+  then OTmMatch { target = target, arms = cons h (map (lam x: (Unknown, Unknown). (x.0, ((app_ (OTmVarExt {ident = "Obj.magic"}))) x.1)) rest) }
   else OTmMatch { target = target, arms = arms }
 
 let _if = use OCamlAst in lam cond. lam thn. lam els. _omatch_ cond [(ptrue_, thn), (pfalse_, els)]
@@ -198,14 +198,14 @@ lang OCamlMatchGenerate = MExprAst + OCamlAst + OCamlTopGenerate
   | TmMatch (t & {pat = PatBool {val = val}}) ->
     let thn = generate env t.thn in
     let els = generate env t.els in
-    _if (objMagic (generate env t.target))
+    _if (((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.target))
       (if val then thn else els)
       (if val then els else thn)
   | TmMatch (t & {pat = PatInt {val = val}}) ->
-    _if (eqi_ (objMagic (generate env t.target)) (int_ val))
+    _if (eqi_ (((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.target)) (int_ val))
       (generate env t.thn) (generate env t.els)
   | TmMatch (t & {pat = PatChar {val = val}}) ->
-    _if (eqc_ (objMagic (generate env t.target)) (char_ val))
+    _if (eqc_ (((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.target)) (char_ val))
       (generate env t.thn) (generate env t.els)
   | TmMatch (t & {pat = PatSeqTot {pats = pats}}) ->
     let n = length pats in
@@ -224,7 +224,7 @@ lang OCamlMatchGenerate = MExprAst + OCamlAst + OCamlTopGenerate
       else eqi_ (length_ target) (int_ n)
     in
     bind_
-      (nulet_ targetId (objMagic (generate env t.target)))
+      (nulet_ targetId (((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.target)))
       (_if cond thn (generate env t.els))
   | TmMatch (t & {pat = PatSeqEdge {prefix = prefix, middle = middle, postfix = postfix}}) ->
     let n1 = length prefix in
@@ -257,7 +257,7 @@ lang OCamlMatchGenerate = MExprAst + OCamlAst + OCamlTopGenerate
       else thn
     in
     bindall_ [
-      nulet_ targetId (objMagic (generate env t.target)),
+      nulet_ targetId (((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.target)),
       nulet_ lenId (length_ (nvar_ targetId)),
       _if cond thn (generate env t.els)]
   | TmMatch (t & {pat = PatRecord {bindings = bindings, ty = ty}}) ->
@@ -272,7 +272,7 @@ lang OCamlMatchGenerate = MExprAst + OCamlAst + OCamlTopGenerate
           let recPat = OPatRecord {bindings = bindings} in
           let conPat = OPatCon {ident = name, args = [recPat]} in
           OTmMatch {
-            target = objMagic (generate env t.target),
+            target = ((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.target),
             arms = [(conPat, generate env t.thn)]}
         else
           let msg = join [
@@ -322,10 +322,10 @@ lang OCamlMatchGenerate = MExprAst + OCamlAst + OCamlTopGenerate
         OPatCon {ident = ident, args = args}
       in
       bind_
-        (nulet_ targetId (objMagic (generate env t.target)))
+        (nulet_ targetId (((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.target)))
         (OTmMatch {target = nvar_ targetId,
                    arms = [ (conPat, thn)
-                          , (pvarw_, objMagic (generate env t.els)) ]})
+                          , (pvarw_, ((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.els)) ]})
     else
       let msg = join [
         "Match pattern refers to unknown type constructor ",
@@ -346,7 +346,7 @@ lang OCamlMatchGenerate = MExprAst + OCamlAst + OCamlTopGenerate
         (lam pat. match pat with PatInt _ then true else false) []
         (lam acc. lam t : MatchRecord. snoc acc (t.pat, generate env t.thn)) t
     with (arms, defaultCase) in
-		_omatch_ (objMagic (generate env t.target))
+		_omatch_ (((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.target))
 			(snoc arms (pvarw_, generate env defaultCase))
   | TmMatch ({pat = PatChar {val = c}, target = TmVar _} & t) ->
     match
@@ -359,7 +359,7 @@ lang OCamlMatchGenerate = MExprAst + OCamlAst + OCamlTopGenerate
             in snoc acc (pat, generate env t.thn)
           else never) t
     with (arms, defaultCase) in
-		_omatch_ (objMagic (generate env t.target))
+		_omatch_ (((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.target))
 			(snoc arms (pvarw_, generate env defaultCase))
   | TmMatch (t & {pat = PatSeqEdge {prefix = [head], middle = tail, postfix = []}}) ->
     -- Applies special-case handling for matching on the head and tail of a
@@ -378,7 +378,7 @@ lang OCamlMatchGenerate = MExprAst + OCamlAst + OCamlTopGenerate
     in
     let thn = bindall_ [headBind, tailBind, generate env t.thn] in
     bind_
-      (nulet_ targetId (objMagic (generate env t.target)))
+      (nulet_ targetId (((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.target)))
       (_if (null_ (nvar_ targetId)) (generate env t.els) thn)
   | TmMatch ({target = TmVar _, pat = PatCon pc, els = TmMatch em} & t) ->
     match collectNestedMatchesByConstructor env t with (arms, defaultCase) in
@@ -407,7 +407,7 @@ lang OCamlMatchGenerate = MExprAst + OCamlAst + OCamlTopGenerate
 				let pat = if isUnit
 					then OPatCon {ident = arm.0, args = []}-- TODO(vipa, 2021-05-12): this will break if there actually is an inner pattern that wants to look at the unit
 					else OPatCon {ident = arm.0, args = [npvar_ patVarName]} in
-				let innerPatternTerm = toNestedMatch (withType argTy (objMagic target)) arm.1 in
+				let innerPatternTerm = toNestedMatch (withType argTy (((app_ (OTmVarExt {ident = "Obj.magic"}))) target)) arm.1 in
 				(pat, generate env innerPatternTerm)
 			else
 				let msg = join [
@@ -417,7 +417,7 @@ lang OCamlMatchGenerate = MExprAst + OCamlAst + OCamlTopGenerate
 				errorSingle [t.info] msg
 		in
 		let flattenedMatch =
-			_omatch_ (objMagic (generate env t.target))
+			_omatch_ (((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.target))
 				(snoc
 						(map f (mapBindings arms))
 						(pvarw_, (app_ (nvar_ defaultCaseName) uunit_)))
@@ -432,9 +432,9 @@ lang OCamlGenerate = MExprAst + OCamlAst + OCamlTopGenerate + OCamlMatchGenerate
     let innerGenerate = lam tm.
       let tm = generate env tm in
       match tm with TmConst _ then tm
-      else objMagic tm in
+      else ((app_ (OTmVarExt {ident = "Obj.magic"}))) tm in
     app_
-      (objMagic (OTmVarExt {ident = (intrinsicOpSeq "Helpers.of_array")}))
+      (((app_ (OTmVarExt {ident = "Obj.magic"}))) (OTmVarExt {ident = (intrinsicOpSeq "Helpers.of_array")}))
       (OTmArray {tms = map innerGenerate tms})
   | TmRecord t ->
     if mapIsEmpty t.bindings then TmRecord t
@@ -444,6 +444,7 @@ lang OCamlGenerate = MExprAst + OCamlAst + OCamlTopGenerate + OCamlMatchGenerate
         match mapLookup ident env.constrs with Some (TyRecord {fields = fields} & ty) then
           let fieldTypes = ocamlTypedFields fields in
           match mapLookup fieldTypes env.records with Some id then
+            let objRepr = lam t. app_ (OTmVarExt {ident = "Obj.repr"}) t in
             let bindings = mapMap (lam e. objRepr (generate env e)) t.bindings in
             OTmConApp {
               ident = id,
@@ -455,6 +456,7 @@ lang OCamlGenerate = MExprAst + OCamlAst + OCamlTopGenerate + OCamlMatchGenerate
   | TmRecordUpdate t & upd->
     recursive let collectNestedUpdates = lam acc. lam rec.
       match rec with TmRecordUpdate t then
+        let objRepr = lam t. app_ (OTmVarExt {ident = "Obj.repr"}) t in
         collectNestedUpdates
           (cons (t.key, objRepr (generate env t.value)) acc)
           t.rec
@@ -471,7 +473,7 @@ lang OCamlGenerate = MExprAst + OCamlAst + OCamlTopGenerate + OCamlMatchGenerate
       match mapLookup ident env.constrs with Some (TyRecord {fields = fields}) then
         let fieldTypes = ocamlTypedFields fields in
         match mapLookup fieldTypes env.records with Some id then
-          let rec = objMagic (generate env rec) in
+          let rec = ((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env rec) in
           let inlineRecordName = nameSym "rec" in
           -- NOTE(larshum, 2022-12-21): To ensure record updates are evaluated
           -- in declaration order, we add bindings for each of the inner values.
@@ -511,6 +513,7 @@ lang OCamlGenerate = MExprAst + OCamlAst + OCamlTopGenerate + OCamlMatchGenerate
       else
         -- NOTE(vipa, 2021-05-12): Non-unit record, the OCaml constructor takes a record with 1 or more fields
         match t.body with TmRecord r then
+          let objRepr = lam t. app_ (OTmVarExt {ident = "Obj.repr"}) t in
           -- NOTE(vipa, 2021-05-11): We have an explicit record, use it directly
           OTmConApp {
             ident = t.ident,
@@ -531,7 +534,7 @@ lang OCamlGenerate = MExprAst + OCamlAst + OCamlTopGenerate + OCamlMatchGenerate
               ty = tyTm t.body,
               info = infoTm t.body
             } in
-            _omatch_ (objMagic (generate env t.body))
+            _omatch_ (((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env t.body))
               [ ( OPatCon {ident = id, args = [pat]}
                 , OTmConApp {ident = t.ident, args = [reconstructedRecord]}
                 )
@@ -541,6 +544,7 @@ lang OCamlGenerate = MExprAst + OCamlAst + OCamlTopGenerate + OCamlMatchGenerate
                           "This was caused by an error in the type-lifting."] in
           errorSingle [t.info] msg
     else
+      let objRepr = lam t. app_ (OTmVarExt {ident = "Obj.repr"}) t in
       -- NOTE(vipa, 2021-05-11): Argument is not an explicit record, it should be `repr`ed
       OTmConApp {
         ident = t.ident,
@@ -551,7 +555,7 @@ lang OCamlGenerate = MExprAst + OCamlAst + OCamlTopGenerate + OCamlMatchGenerate
   -- function chain makes all the other types flexible, the arguments
   -- can be any type, and the result type can be any type, it's thus
   -- very economical
-    TmApp {{t with lhs = objMagic (generate env lhs)}
+    TmApp {{t with lhs = ((app_ (OTmVarExt {ident = "Obj.magic"}))) (generate env lhs)}
            with rhs = generate env rhs}
   | TmNever t ->
     let msg = "Reached a never term, which should be impossible in a well-typed program." in

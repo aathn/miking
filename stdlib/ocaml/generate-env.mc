@@ -15,10 +15,12 @@ let emptyGenerateEnv = use MExprCmp in {
   exts = mapEmpty nameCmp
 }
 
-let objRepr = use OCamlAst in
-  lam t. app_ (OTmVarExt {ident = "Obj.repr"}) t
-let objMagic = use OCamlAst in
-  lam t. app_ (OTmVarExt {ident = "Obj.magic"}) t
+--let objRepr = use OCamlAst in
+--  lam t. app_ (OTmVarExt {ident = "Obj.repr"}) t
+--let objRepr = lam t. app_ (OTmVarExt {ident = "Obj.repr"}) t in
+--let objMagic = use OCamlAst in
+--  lam t. app_ (OTmVarExt {ident = "Obj.magic"}) t
+--let objMagic = use OCamlAst in lam t. app_ (OTmVarExt {ident = "Obj.magic"}) t in
 
 let ocamlTypedFields = lam fields : Map SID (use Ast in Type).
   mapMap (lam. tyunknown_) fields
