@@ -202,6 +202,8 @@ lang PrettyPrint = IdentifierPrettyPrint
   -- Intentionally left blank
   sem getTypeStringCode (indent : Int) (env : PprintEnv) =
   -- Intentionally left blank
+  sem getKindStringCode (indent : Int) (env : PprintEnv) =
+  -- Intentionally left blank
 
   sem exprToString (env: PprintEnv) =
   | expr ->
@@ -1159,22 +1161,7 @@ lang VarTypePrettyPrint = PrettyPrint + VarTypeAst
     pprintVarName env t.ident
 end
 
-lang KindPrettyPrint = PrettyPrint + RecordTypeAst + DataTypeAst + KindAst
-  sem getKindStringCode (indent : Int) (env : PprintEnv) =
-  | Record r ->
-    let tyrec = TyRecord {info = NoInfo (), fields = r.fields} in
-    getTypeStringCode indent env tyrec
-  | Data r ->
-    let consstr =
-      mapFoldWithKey (lam strs. lam. lam ks.
-        snoc strs (strJoin ", " (map nameGetStr (setToSeq ks))))
-        [] r.types in
-    (env, join ["{", strJoin ", " consstr, "}"])
-  | Poly () -> (env, "Poly")
-  | Mono () -> (env, "Mono")
-end
-
-lang AllTypePrettyPrint = PrettyPrint + AllTypeAst + KindPrettyPrint
+lang AllTypePrettyPrint = PrettyPrint + AllTypeAst
   sem typePrecedence =
   | TyAll _ -> 0
 
@@ -1207,6 +1194,33 @@ lang AliasTypePrettyPrint = PrettyPrint + AliasTypeAst
 
   sem getTypeStringCode (indent : Int) (env : PprintEnv) =
   | TyAlias t -> getTypeStringCode indent env t.display
+end
+
+lang PolyKindPrettyPrint = PrettyPrint + PolyKindAst
+  sem getKindStringCode (indent : Int) (env : PprintEnv) =
+  | Poly () -> (env, "Poly")
+end
+
+lang MonoKindPrettyPrint = PrettyPrint + MonoKindAst
+  sem getKindStringCode (indent : Int) (env : PprintEnv) =
+  | Mono () -> (env, "Mono")
+end
+
+lang RecordKindPrettyPrint = PrettyPrint + RecordKindAst + RecordTypeAst
+  sem getKindStringCode (indent : Int) (env : PprintEnv) =
+  | Record r ->
+    let tyrec = TyRecord {info = NoInfo (), fields = r.fields} in
+    getTypeStringCode indent env tyrec
+end
+
+lang DataKindPrettyPrint = PrettyPrint + DataKindAst
+  sem getKindStringCode (indent : Int) (env : PprintEnv) =
+  | Data r ->
+    let consstr =
+      mapFoldWithKey (lam strs. lam. lam ks.
+        snoc strs (strJoin ", " (map nameGetStr (setToSeq ks))))
+        [] r.types in
+    (env, join ["{", strJoin ", " consstr, "}"])
 end
 
 
@@ -1249,13 +1263,17 @@ lang MExprPrettyPrint =
   SeqTypePrettyPrint + RecordTypePrettyPrint + VariantTypePrettyPrint +
   ConTypePrettyPrint + DataTypePrettyPrint + VarTypePrettyPrint +
   AppTypePrettyPrint + TensorTypePrettyPrint + AllTypePrettyPrint +
-  AliasTypePrettyPrint
+  AliasTypePrettyPrint +
+
+  -- Kinds
+  PolyKindPrettyPrint + MonoKindPrettyPrint + RecordKindPrettyPrint +
+  DataKindPrettyPrint +
 
   -- Identifiers
-  + MExprIdentifierPrettyPrint
+  MExprIdentifierPrettyPrint +
 
   -- Syntactic Sugar
-  + RecordProjectionSyntaxSugarPrettyPrint
+  RecordProjectionSyntaxSugarPrettyPrint
 
   sem mexprToString =
   | expr -> exprToStringKeywords mexprKeywords expr
