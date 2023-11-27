@@ -1161,7 +1161,7 @@ lang VarTypePrettyPrint = PrettyPrint + VarTypeAst
     pprintVarName env t.ident
 end
 
-lang AllTypePrettyPrint = PrettyPrint + AllTypeAst
+lang AllTypePrettyPrint = PrettyPrint + AllTypeAst + PolyKindAst + MonoKindAst
   sem typePrecedence =
   | TyAll _ -> 0
 
