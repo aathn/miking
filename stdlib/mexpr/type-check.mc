@@ -31,15 +31,15 @@ include "mexpr/unify.mc"
 include "mexpr/value.mc"
 
 type TCEnv = {
-  varEnv: Map Name (use Ast in Type),
-  conEnv: Map Name (Level, use Ast in Type),
-  tyVarEnv: Map Name (Level, use Ast in Kind),
-  tyConEnv: Map Name (Level, [Name], use Ast in Type),
+  varEnv : use Ast in Map Name Type,
+  conEnv : use Ast in Map Name (Level, Type),
+  tyVarEnv : use Ast in Map Name (Level, Kind),
+  tyConEnv : use Ast in Map Name (Level, [Name], Type),
   typeDeps : Map Name (Set Name), -- The set of type names recursively occuring in a type
   conDeps  : Map Name (Set Name), -- The set of constructors in scope for a type
-  matches : [(use Ast in Expr, Set (use NormPat in NPat))],
-  currentLvl: Level,
-  disableRecordPolymorphism: Bool
+  matches : use NormPat in [Map Name NormPat],
+  currentLvl : Level,
+  disableRecordPolymorphism : Bool
 }
 
 let typcheckEnvEmpty = {
@@ -49,7 +49,7 @@ let typcheckEnvEmpty = {
   tyConEnv = mapEmpty nameCmp,
   typeDeps = mapEmpty nameCmp,
   conDeps  = mapEmpty nameCmp,
-  matches  = [],
+  matches  = [mapEmpty nameCmp],
   currentLvl = 0,
   disableRecordPolymorphism = true
 }
@@ -588,9 +588,8 @@ lang PatTypeCheck = TCUnify
 end
 
 lang IsEmpty =
-  TCUnify + NormPatMatch + ConNormPat + ConTypeAst +
-  DataTypeAst + DataKindAst + AppTypeUtils + Generalize +
-  GetKind
+  TCUnify + ConNormPat + ConTypeAst + DataTypeAst + DataKindAst +
+  AppTypeUtils + Generalize + GetKind
 
   -- Merge two assignments of meta variables to upper bound constructor sets.
   -- In particular, if either assignment is more open than the other, that one
@@ -667,7 +666,7 @@ lang IsEmpty =
         seqLiftA2 (mapUnionWith (mapUnionWith setIntersect)) ms
           (npatIsEmpty env (ty, p)))
       [mapEmpty cmpType]
-      (setToSeq np)
+      np
 
   sem npatIsEmpty : TCEnv -> (Type, NPat) -> [Map Type (Map Name (Set Name))]
   sem npatIsEmpty env =
@@ -695,12 +694,6 @@ lang IsEmpty =
   sem matchesPossible : TCEnv -> Option (Map Name NormPat)
   sem matchesPossible =
   | env ->
-    let matchedVariables : [Map Name NormPat] =
-      map
-        (foldl (mapUnionWith normpatIntersect) (mapEmpty nameCmp))
-        (seqMapM setToSeq
-           (map matchNormpat env.matches))
-    in
     recursive let work = lam f. lam a. lam bs.
       match bs with [b] ++ bs then
         match f a b with a & ![] then work f a bs
@@ -720,7 +713,7 @@ lang IsEmpty =
                    error "Unknown variable in matchesPossible!")
                [] m))
         [mapEmpty cmpType]
-        matchedVariables
+        env.matches
     in
     switch possible
     case Left m then Some m
@@ -879,18 +872,23 @@ lang RecLetsTypeCheck = TypeCheck + RecLetsAst + LetTypeCheck + MetaVarDisableGe
     TmRecLets {t with bindings = bindings, inexpr = inexpr, ty = tyTm inexpr}
 end
 
-lang MatchTypeCheck = TypeCheck + PatTypeCheck + MatchAst + NormPat
+lang MatchTypeCheck = TypeCheck + PatTypeCheck + MatchAst + NormPatMatch
   sem typeCheckExpr env =
   | TmMatch t ->
     let target = typeCheckExpr env t.target in
     match typeCheckPat env (mapEmpty nameCmp) t.pat with (patEnv, pat) in
     unify env [infoTm target, infoPat pat] (tyPat pat) (tyTm target);
-    let np = patToNormpat t.pat in
+    let np = patToNormpat pat in
+    let mkMatches = lam p.
+      seqLiftA2 (mapUnionWith normpatIntersect)
+        (matchNormpat (t.target, p))
+        env.matches
+    in
+
     let thnEnv = {env with varEnv = mapUnion env.varEnv patEnv,
-                           matches = snoc env.matches (t.target, np) } in
+                           matches = mkMatches np } in
     let elsEnv = {env with varEnv = mapUnion env.varEnv patEnv,
-                           matches = snoc env.matches
-                                       (t.target, normpatComplement np)} in
+                           matches = mkMatches (normpatComplement np)} in
     let thn = typeCheckExpr thnEnv t.thn in
     let els = typeCheckExpr elsEnv t.els in
     unify env [infoTm thn, infoTm els] (tyTm thn) (tyTm els);
