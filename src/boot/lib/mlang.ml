@@ -531,18 +531,53 @@ let merge_env_prefer_right : mlang_env -> mlang_env -> mlang_env = fun a b ->
   ; language_envs = Record.union (fun _ _a b -> Some b) a.language_envs b.language_envs
   }
 
-let rec translate_ty (env : mlang_env) : ty -> ty = function
-  | TyCon (fi, id, data) ->
-     begin match Record.find_opt id env.ty_cons with
-     | Some id -> TyCon (fi, id, data)
-     | None -> TyCon (fi, empty_mangle id, data)
-     end
-  | TyUse (fi, lang, ty) ->
-     begin match Record.find_opt lang env.language_envs with
-     | Some new_env -> translate_ty (merge_env_prefer_right env new_env) ty
-     | None -> raise_error fi
-                 ( "Unbound language fragment '" ^ Ustring.to_utf8 lang ^ "'" )
-     end
+let rec translate_ty (env : mlang_env) : ty -> ty =
+  let translate_cons =
+    List.map (fun k ->
+        Option.value ~default:k (Record.find_opt k env.constructors) )
+  in
+  function
+  | TyCon (fi, id, data) -> (
+      let data =
+        Option.map
+          (function
+            | DCons ks ->
+                DCons (translate_cons ks)
+            | DNCons ks ->
+                DNCons (translate_cons ks)
+            | DVar v ->
+                DVar v )
+          data
+      in
+      match Record.find_opt id env.ty_cons with
+      | Some id ->
+          TyCon (fi, id, data)
+      | None ->
+          TyCon (fi, empty_mangle id, data) )
+  | TyUse (fi, lang, ty) -> (
+    match Record.find_opt lang env.language_envs with
+    | Some new_env ->
+        translate_ty (merge_env_prefer_right env new_env) ty
+    | None ->
+        raise_error fi
+          ("Unbound language fragment '" ^ Ustring.to_utf8 lang ^ "'") )
+  | TyAll (fi, id, kind, ty) ->
+      let kind =
+        kind
+        |> Option.map
+             (List.map (fun (t, lower, upper) ->
+                  let t =
+                    match Record.find_opt t env.ty_cons with
+                    | Some t ->
+                        t
+                    | None ->
+                        empty_mangle t
+                  in
+                  let lower = translate_cons lower in
+                  let upper = Option.map translate_cons upper in
+                  (t, lower, upper) ) )
+      in
+      TyAll (fi, id, kind, translate_ty env ty)
   | ty ->
      let ty = smap_ty_ty (translate_ty env) ty in
      ty
