@@ -82,7 +82,7 @@ let _insertVar = lam name. lam ty. lam env : TCEnv.
 -- TYPE UNIFICATION --
 ----------------------
 
-lang TCUnify = Unify + AliasTypeAst + MetaVarTypeAst + PrettyPrint + Cmp
+lang TCUnify = Unify + AliasTypeAst + MetaVarTypeAst + DataKindAst + PrettyPrint + Cmp
   -- Unify the types `ty1' and `ty2', where
   -- `ty1' is the expected type of an expression, and
   -- `ty2' is the inferred type of the expression.
@@ -93,7 +93,7 @@ lang TCUnify = Unify + AliasTypeAst + MetaVarTypeAst + PrettyPrint + Cmp
       { empty = (),
         combine = lam. lam. (),
         unify = lam env. lam ty1. lam ty2. unifyMeta (u ()) tcenv info env (ty1, ty2),
-        err = lam. unificationError info ty1 ty2
+        err = lam err. unificationError info err ty1 ty2
       } in
     let env : UnifyEnv = {
       boundNames = biEmpty,
@@ -131,8 +131,8 @@ lang TCUnify = Unify + AliasTypeAst + MetaVarTypeAst + PrettyPrint + Cmp
   | ki ->
     sfold_Kind_Type (lam. lam ty. unifyCheckType env info boundVars tv ty) () ki
 
-  sem unificationError : [Info] -> Type -> Type -> ()
-  sem unificationError info expectedType =
+  sem unificationError : [Info] -> UnifyError -> Type -> Type -> ()
+  sem unificationError info err expectedType =
   | foundType ->
     let pprintEnv = pprintEnvEmpty in
     match getTypeStringCode 0 pprintEnv expectedType with (pprintEnv, expected) in
@@ -181,11 +181,35 @@ lang TCUnify = Unify + AliasTypeAst + MetaVarTypeAst + PrettyPrint + Cmp
         match mapAccumL f pprintEnv (mapBindings res.aliases) with (pprintEnv, aliases) in
         (pprintEnv, join [join aliases, "\n"])
     with (pprintEnv, aliases) in
+    let diffstr =
+      let getDiff = lam ks1. lam ks2.
+        match ks2.upper with Some upper then
+          let diff = setSubtract ks1.lower (setUnion ks2.lower upper) in
+          if not (setIsEmpty diff) then Some diff else None ()
+        else None ()
+      in
+      match err with Kinds (Data d1, Data d2) then
+        match
+          findMap
+            (lam x.
+              match mapLookup x.0 d2.types with Some ks then
+                match getDiff x.1 ks with Some _ & diff then diff else
+                  getDiff ks x.1
+              else None ())
+            (mapBindings d1.types)
+        with Some diff then
+          match mapAccumL pprintConName pprintEnv (setToSeq diff) with (_, diff) in
+          join ["* One type requires constructors not allowed in the other:\n",
+                "*   ", strJoin " " diff, "\n"]
+        else ""
+      else ""
+    in
     let msg = join [
       "* Expected an expression of type: ",
       expected, "\n",
       "*    Found an expression of type: ",
       found, "\n",
+      diffstr,
       if and (null kinds) (null aliases) then "" else "* where",
       kinds,
       aliases,
