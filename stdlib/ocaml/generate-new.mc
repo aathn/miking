@@ -1,72 +1,127 @@
-lang OCamlGenerate = OCamlTopAst
-  sem generateTops : Expr -> Top
+include "option.mc"
+include "effect.mc"
 
-  sem generate : Expr -> Expr
+include "ocaml/ast.mc"
+include "ocaml/generate-env.mc"
+include "ocaml/external.mc"
+
+include "mexpr/ast-builder.mc"
+include "mexpr/ast-effect.mc"
+include "mexpr/type.mc"
+
+lang OCamlGenerate = OCamlTopAst + AstEffect
+  sem generateTops : Expr -> Eff [Top]
+  sem generateTops =
+  | tm ->
+    effMap (lam x. [OTopExpr {expr = x}]) (generate tm)
+
+  sem generate : Expr -> Eff Expr
   sem generate =
-  | tm -> smap_Expr_Expr generate tm
+  | tm -> smapEff_Expr_Expr generate tm
 
-  sem generateType : Type -> Type
+  sem generateType : Type -> Eff Type
   sem generateType =
-  | ty -> smap_Type_Type generateType ty
+  | ty -> smapEff_Type_Type generateType ty
 end
 
-lang OCamlGenerateLet = OCamlGenerate
+lang OCamlGenerateLet = OCamlGenerate + LetAst
   sem generateTops =
   | TmLet t ->
-    cons
-      (OTopLet { ident = t.ident
-               , tyBody = generateType t.tyAnnot
-               , body = generate t.body })
+    effMap2 cons
+      (effMap2
+         (lam tyBody. lam body.
+         (OTopLet { ident = t.ident
+                  , tyBody = tyBody
+                  , body = body }))
+         (generateType t.tyAnnot)
+         (generate t.body))
       (generateTops t.inexpr)
 end
 
-lang OCamlGenerateRecLets
+lang OCamlGenerateRecLets = OCamlGenerate + RecLetsAst
   sem generateTops =
   | TmRecLets t ->
-    let f = lam b.
-      { ident = b.ident
-      , tyBody = generateType b.tyAnnot
-      , body = generate b.body
-      } in
-    cons
-      (OTopRecLets { bindings = map f t.bindings })
+    let f =
+      lam b.
+      effMap2
+        (lam tyBody. lam body.
+        { ident = b.ident
+        , tyBody = tyBody
+        , body = body
+        })
+        (generateType b.tyAnnot)
+        (generate b.body)
+    in
+    effMap2
+      (lam bindings. lam rest.
+      cons (OTopRecLets { bindings = bindings }) rest)
+      (effMapM f t.bindings)
       (generateTops t.inexpr)
 end
 
-lang OCamlGenerateType
+lang OCamlGenerateType = OCamlGenerate + TypeAst + VariantTypeAst
   sem generateTops =
   | TmType t ->
     let decl =
       match t.tyIdent with TyVariant _ then
-        OTopOpenVariantDecl {ident = t.ident, params = t.params}
+        return (OTopOpenVariantDecl {ident = t.ident, params = t.params})
       else
-        OTopTypeDecl {ident = t.ident, params = t.params, ty = generateType t.tyIdent}
+        effMap
+          (lam ty. OTopTypeDecl {ident = t.ident, params = t.params, ty = ty})
+          (generateType t.tyIdent)
     in
-    cons decl (generateTops t.inexpr)
+    effMap2 cons decl (generateTops t.inexpr)
 end
 
-lang OCamlGenerateCon
+lang OCamlGenerateCon = OCamlGenerate + DataAst + ConTypeAst + ConDefTypeUtils + Failure
+  sem invalidConstructorFailure : Info -> Name -> Failure
+
   sem generateTops =
   | TmConDef t ->
     match getConDefType t.tyIdent with TyCon {ident = ident} then
-      OTopOpenVariantExt
-        { ident = ident
-        , constrs = mapFromSeq nameCmp [(t.ident, generateType t.tyIdent)]}
-    else
-      errorSingle [t.info]
-        (join ["Invalid constructor type for constructor ", nameGetStr t.ident])
-end
-
-lang OCamlGenerateExt
-  sem generateTops =
-  | TmExt t ->
-    match mapLookup t.ident env.exts with Some r then
-      match convertData t.info env (OTmExprExt { expr = r.expr }) (r.ty, tyIdent)
-      with (_, body) in
-      cons
-        (OTopLet { ident = t.ident, tyBody = generateType t.tyIdent, body = body })
+      effMap2
+        (lam tyIdent. lam rest.
+        cons
+          (OTopOpenVariantExt
+             { ident = ident
+             , constrs = mapFromSeq nameCmp [(t.ident, tyIdent)] })
+          rest)
+        (generateType t.tyIdent)
         (generateTops t.inexpr)
     else
-      errorSingle [t.info] (join ["No implementation for external ", nameGetStr ident])
+      fail (invalidConstructorFailure t.info t.ident)
 end
 
+lang OCamlGenerateExt =
+  OCamlGenerate + ExtAst + OCamlExternal + OCamlGenerateExternalNaive +
+  Reader + Failure
+
+  sem missingExternalFailure : Info -> Name -> Failure
+  sem getGenerateEnv : Ctx -> GenerateEnv
+
+  sem generateTops =
+  | TmExt t ->
+    bind (ask getGenerateEnv) (lam env.
+    match mapLookup t.ident env.exts with Some ([r] ++ _) then
+      match convertData t.info env (OTmExprExt { expr = r.expr }) (r.ty, t.tyIdent)
+      with (_, body) in
+      effMap2
+        (lam tyBody. lam rest.
+        cons
+          (OTopLet { ident = t.ident, tyBody = tyBody, body = body }) rest)
+        (generateType t.tyIdent)
+        (generateTops t.inexpr)
+    else
+      fail (missingExternalFailure t.info t.ident))
+end
+
+lang OCamlGenerateMExpr =
+  OCamlGenerateLet + OCamlGenerateRecLets + OCamlGenerateType +
+  OCamlGenerateCon + OCamlGenerateExt
+end
+
+mexpr
+
+use OCamlGenerateMExpr in
+
+(lam x. lam y. x) 0 (generateTops (var_ "hello"))

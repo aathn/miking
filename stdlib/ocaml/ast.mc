@@ -9,8 +9,12 @@ type OCamlTopBinding =
 
 lang OCamlTopAst = Ast
   syn Top =
-  | OTopTypeDecl { ident : Name, ty : Type }
+  | OTopTypeDecl { ident : Name, params : [Name], ty : Type }
   | OTopVariantTypeDecl { ident : Name, constrs : Map Name Type }
+  | OTopOpenVariantDecl { ident : Name, params : [Name] }
+  | OTopOpenVariantExt  { ident : Name
+                        -- , params : [Name]
+                        , constrs : Map Name Type}
   | OTopCExternalDecl { ident : Name, ty : Type, bytecodeIdent : Name,
                         nativeIdent : Name }
   | OTopLet { ident : Name, tyBody: Type, body : Expr }
