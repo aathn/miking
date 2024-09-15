@@ -37,7 +37,7 @@ lang MExprJVMCompile = MExprAst + JVMAst
                 concat [ldcInt_ 1] wrapBoolean_
             else 
                 concat [ldcInt_ 0] wrapBoolean_
-        else never)
+        else error "unimplemented")
         in { env with bytecode = concat env.bytecode bc }
     | TmApp { lhs = lhs, rhs = rhs, ty = ty } ->
         let to = ty in 
