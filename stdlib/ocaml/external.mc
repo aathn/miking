@@ -333,6 +333,7 @@ lang OCamlDataConversionRecords = OCamlDataConversion + OCamlAst
       match mapLookup (ocamlTypedFields fields2) env.records
       with Some id then
         let bindings =
+          let objRepr = lam t. app_ (OTmVarExt {ident = "Obj.repr"}) t in
           zipWith (lam label. lam t. (label, objRepr t)) labels2 tms
         in
         let record =
@@ -389,6 +390,7 @@ lang OCamlDataConversionRecords = OCamlDataConversion + OCamlAst
                     frozen = false
                   }
                 in
+                let objMagic = use OCamlAst in lam t. app_ (OTmVarExt {ident = "Obj.magic"}) t in
                 convertData info env (objMagic var) (ty1, ty2)
               else
                 errorSingle [info] (join

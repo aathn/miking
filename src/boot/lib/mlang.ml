@@ -848,7 +848,10 @@ let wrap_sems : mlang_env -> ustring -> lang_data -> tm -> tm = fun env lang_nam
         TmMatch (pat_info case.pat, scrut, case.pat, case.rhs, tm) in
       let wrap_param (Param (fi, name, ty)) (tm : tm) =
         TmLam (fi, name, Symb.Helpers.nosym, false, ty, tm) in
-      let body = List.fold_right wrap_case cases (TmNever sem.fi) in
+      let body = List.fold_right wrap_case cases
+                   (TmApp (sem.fi, TmConst (sem.fi, Cerror),
+                           TmSeq(sem.fi, Mseq.map (fun x -> TmConst(sem.fi,CChar(x)))
+                                           (Mseq.Helpers.of_ustring (us "Inexhaustive sem match!"))))) in
       let body = TmLam (sem.fi, us"__sem_target", Symb.Helpers.nosym, false, TyUnknown sem.fi, body) in
       let body = List.fold_right wrap_param (Option.value ~default:[] sem.params) body in
       ( sem.fi
