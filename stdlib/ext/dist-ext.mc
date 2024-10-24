@@ -170,13 +170,13 @@ let betabinSample = lam n:Int. lam a: Float. lam b: Float.
   binomialSample p n
 
 let betabinLogPmf:Int -> Float -> Float -> Int -> Float = lam n. lam a. lam b. lam x.
-  if gti x n then negf inf else 
+  if gti x n then negf inf else
   let lbeta1 = addf (subf (logGamma (addf a (int2float x))) (logGamma (addf (int2float n) (addf a b)))) (logGamma (addf b (int2float (subi n x))))  in
   let lbeta2 = addf (subf (logGamma a) (logGamma (addf a b))) (logGamma b)  in
   let lcomb = (logCombination n x) in
   addf lcomb (subf lbeta1 lbeta2)
 
-let betabinPmf = lam n:Int. lam a: Float. lam b: Float. lam x:Float.
+let betabinPmf = lam n:Int. lam a: Float. lam b: Float. lam x:Int.
   exp (betabinLogPmf n a b x)
 
 -- Seed
@@ -286,6 +286,7 @@ utest geometricSample 0.3 with 0 using geqi in
 -- Testing Beta-Binomial
 utest betabinLogPmf 5 1. 1. 2 with -1.79175946923 using _eqf in
 utest exp (betabinLogPmf 5 1. 1. 3) with 0.166666666667 using _eqf in
+utest betabinPmf 5 1. 1. 3 with 0.166666666667 using _eqf in
 utest betabinSample 20 1. 1. with 0 using intRange 0 20 in
 
 -- Testing seed
