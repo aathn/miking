@@ -69,6 +69,13 @@ let fileExtMap =
         cLibraries = []
       }
     ]),
+    ("externalReadBytes", [
+      { expr = "(fun rc len -> try let buf = Bytes.create len in let actual_len = input rc buf 0 len in let reached_eof = actual_len < len in let had_error = false in let int_list = List.init actual_len (fun i -> int_of_char (Bytes.get buf i)) in (int_list, reached_eof, had_error) with | Sys_error err -> ([], false, true))",
+        ty = tyarrows_ [otyvarext_ "in_channel" [], tyint_, otytuple_ [otylist_ tyint_, tybool_, tybool_]],
+        libraries = [],
+        cLibraries = []
+      }
+    ]),
     ("externalReadString", [
       { expr = "(fun f -> try really_input_string f (in_channel_length f) with _ -> \"\")",
         ty = tyarrows_ [otyvarext_ "in_channel" [], otystring_],

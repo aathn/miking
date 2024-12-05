@@ -59,6 +59,17 @@ external externalReadLine ! : ReadChannel -> (String, Bool)
 let fileReadLine : ReadChannel -> Option String =
   lam rc. match externalReadLine rc with (s, false) then Some s else None ()
 
+-- Reads a given number of bytes from the file.
+-- Returns (bytes, eof, error) where bytes is the read bytes
+external externalReadBytes ! : ReadChannel -> Int -> ([Int], Bool, Bool)
+let fileReadBytes : ReadChannel -> Int -> Option [Int] =
+  lam rc. lam len.
+    switch externalReadBytes rc len
+      case ([], true, _) then None ()
+      case (s, _, false) then Some s
+      case _ then None ()
+    end
+
 -- Reads everything in a file and returns the content as a string.
 -- Should support Unicode in the future.
 external externalReadString ! : ReadChannel -> String
@@ -111,6 +122,20 @@ utest
     (l1,l2,l3,l4)
   else ("Error reading file","","","")
 with ("Hello", "Next string", "Final", "EOF") in
+
+-- Test reading x amount of characters from the file
+utest
+  match fileReadOpen filename with Some rc then
+    let l1 = match fileReadBytes rc 3   with Some s then map int2char s else "" in
+    let l2 = match fileReadBytes rc 4   with Some s then map int2char s else "" in
+    let l3 = match fileReadBytes rc 0   with Some s then map int2char s else "" in
+    let l4 = match fileReadBytes rc 1   with Some s then map int2char s else "" in
+    let l5 = match fileReadBytes rc 100 with Some s then map int2char s else "" in
+    let l6 = match fileReadBytes rc 100 with Some s then Some s else None () in
+    fileReadClose rc;
+    (l1,l2,l3,l4,l5,l6)
+  else ("Error reading file","","","","", None ())
+with ("Hel", "lo\nN", "", "e", "xt string\nFinal", None ()) in
 
 -- Check that the file size is correct
 utest fileSize filename with 23 in
