@@ -119,6 +119,7 @@ let compileWithUtests = lam options : Options. lam sourcePath. lam ast.
       if options.toJavaScript then compileMCoreToJS
         { compileJSOptionsEmpty with
           targetPlatform = parseJSTarget options.jsTarget
+        , output = options.output
         , generalOptimizations = not options.disableJsGeneralOptimizations
         , tailCallOptimizations = not options.disableJsTCO
         } ast sourcePath
@@ -141,7 +142,7 @@ let compile = lam files. lam options : Options. lam args.
 
   if options.mlangPipeline then
     printLn "WARNING: You are using an experimental, unstable pipeline.";
-    use MLangPipeline in 
+    use MLangPipeline in
     iter (compileMLangToOcaml options compileWithUtests) files
   else
     let compileFile = lam file.
